@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>V-Shift 使い方説明書</title>
+    <style>
+        /* フォント定義 - ローカルフォントを優先 */
+        @font-face {
+            font-family: 'Meiryo';
+            src: local('メイリオ'), local('Meiryo'), local('MS Gothic');
+            font-weight: normal;
+            font-style: normal;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            position: static;
+        }
+
+        html,
+        body {
+            position: static;
+        }
+
+        body {
+            font-family: 'Meiryo', "メイリオ", "MS ゴシック", "MS Gothic", sans-serif;
+            line-height: 1.5;
+            color: #333;
+            background-color: #fff;
+            padding: 20px 20px;
+            max-width: 98%;
+            margin: 0 auto;
+            position: static;
+            animation: none;
+            transition: none;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 100%;
+            margin: 0 auto;
+            position: static;
+        }
+
+        h1 {
+            font-size: 32px;
+            color: #007ACC;
+            margin-bottom: 30px;
+            margin-top: 20px;
+            text-align: center;
+            border-bottom: 3px solid #007ACC;
+            padding-bottom: 15px;
+            padding-top: 20px;
+            page-break-after: avoid;
+            position: static;
+        }
+
+        h2 {
+            font-size: 24px;
+            color: #007ACC;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-top: 30px;
+            padding-bottom: 10px;
+            border-left: 5px solid #007ACC;
+            padding-left: 15px;
+            page-break-after: avoid;
+            position: static;
+        }
+
+        h3 {
+            font-size: 20px;
+            color: #495057;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-top: 20px;
+            padding-bottom: 10px;
+            page-break-after: avoid;
+            position: static;
+        }
+
+        h4 {
+            font-size: 18px;
+            color: #666;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            padding-top: 15px;
+            padding-bottom: 5px;
+            page-break-after: avoid;
+            position: static;
+        }
+
+        /* セクション - .step クラスを追加 */
+        .section.step {
+            margin-bottom: 40px;
+            padding-top: 30px;
+            padding-bottom: 30px;
+            page-break-inside: avoid;
+            position: static;
+            min-height: 100px;
+        }
+
+        .screen-section.step {
+            margin-bottom: 40px;
+            padding-top: 20px;
+            padding-bottom: 20px;
+            page-break-inside: avoid;
+            position: static;
+            min-height: 80px;
+        }
+
+        /* 画像と説明を横並びに表示するコンテナ */
+        .screen-container {
+            display: flex;
+            gap: 30px;
+            margin: 20px 0;
+            align-items: flex-start;
+            page-break-inside: avoid;
+            position: static;
+        }
+
+        .screen-image-wrapper {
+            flex: 0 0 600px;
+            min-width: 450px;
+            position: static;
+        }
+
+        .screen-image {
+            max-width: 100%;
+            height: auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: block;
+            position: static;
+        }
+
+        .screen-content {
+            flex: 1;
+            min-width: 0;
+            position: static;
+        }
+
+        .element-list {
+            list-style: none;
+            padding-left: 0;
+            margin: 10px 0;
+            position: static;
+        }
+
+        .element-item {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background-color: #f8f9fa;
+            border-left: 3px solid #007ACC;
+            border-radius: 4px;
+            font-size: 14px;
+            position: static;
+        }
+
+        .element-number {
+            display: inline-block;
+            background-color: #007ACC;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-right: 8px;
+            position: static;
+        }
+
+        .element-title {
+            font-weight: bold;
+            color: #007ACC;
+            display: inline;
+            position: static;
+        }
+
+        .element-description {
+            color: #666;
+            font-size: 13px;
+            margin-left: 32px;
+            margin-top: 4px;
+            position: static;
+        }
+
+        .compact-list {
+            margin: 10px 0;
+            position: static;
+        }
+
+        .compact-list li {
+            margin: 5px 0;
+            font-size: 14px;
+            line-height: 1.4;
+            position: static;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+            position: static;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            position: static;
+        }
+
+        th {
+            background-color: #007ACC;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .faq-item {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            position: static;
+        }
+
+        .faq-question {
+            font-weight: bold;
+            color: #007ACC;
+            margin-bottom: 10px;
+            position: static;
+        }
+
+        .faq-answer {
+            color: #666;
+            margin-left: 20px;
+            position: static;
+        }
+
+        .contact-info {
+            background-color: #f0f8ff;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #007ACC;
+            position: static;
+        }
+
+        ul,
+        ol {
+            margin-left: 25px;
+            margin-top: 10px;
+            position: static;
+        }
+
+        li {
+            margin: 5px 0;
+            font-size: 14px;
+            position: static;
+        }
+
+        .toc {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            position: static;
+        }
+
+        .toc ul {
+            list-style-type: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #007ACC;
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .note {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            font-size: 14px;
+            position: static;
+        }
+
+        /* デバッグ用要素 */
+        #__debugPdfPreview {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 5px;
+            height: 5px;
+            background-color: red;
+            z-index: 9999;
+            display: none;
+        }
+
+        /* 印刷用スタイル */
+        @page {
+            size: A4;
+            margin: 10mm;
+        }
+
+        @media print {
+
+            /* アニメーション・トランジションを無効化 */
+            *,
+            *::before,
+            *::after {
+                animation: none !important;
+                transition: none !important;
+                transform: none !important;
+                scale: none !important;
+            }
+
+            /* ヘッダー・フッター・固定要素を非表示 */
+            .site-header,
+            .site-footer,
+            .sticky,
+            .fixed {
+                display: none !important;
+            }
+
+            body {
+                width: 100%;
+                padding: 0;
+                margin: 0;
+            }
+
+            .container {
+                width: 100%;
+                max-width: 100%;
+            }
+
+            .section.step {
+                page-break-inside: avoid;
+                padding-top: 20px;
+                padding-bottom: 20px;
+            }
+
+            .screen-section.step {
+                page-break-inside: avoid;
+                padding-top: 15px;
+                padding-bottom: 15px;
+            }
+
+            .screen-container {
+                page-break-inside: avoid;
+            }
+
+            h1,
+            h2,
+            h3,
+            h4 {
+                page-break-after: avoid;
+                page-break-inside: avoid;
+            }
+
+            img {
+                page-break-inside: avoid;
+                max-width: 100%;
+                height: auto;
+            }
+
+            .screen-image {
+                max-width: 100%;
+                height: auto;
+            }
+
+            /* デバッグ要素を非表示 */
+            #__debugPdfPreview {
+                display: none !important;
+            }
+        }
+
+        @media (max-width: 1400px) {
+            body {
+                padding: 20px 15px;
+            }
+
+            .screen-image-wrapper {
+                flex: 0 0 500px;
+                min-width: 400px;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            body {
+                padding: 20px;
+            }
+
+            .screen-image-wrapper {
+                flex: 0 0 450px;
+                min-width: 350px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            body {
+                padding: 10px;
+            }
+
+            .screen-container {
+                flex-direction: column;
+            }
+
+            .screen-image-wrapper {
+                flex: 1 1 auto;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- デバッグ用要素 -->
+    <div id="__debugPdfPreview"></div>
+
+    <div class="container">
+        <h1>V-Shift 使い方説明書</h1>
+        <p style="text-align: center; margin-bottom: 30px; font-size: 18px; color: #666;">
+            Visiting Care Shift Manager - 訪問介護シフト管理アプリケーション
+        </p>
+
+        <!-- 目次 -->
+        <div class="toc">
+            <h2>目次</h2>
+            <ul>
+                <li><a href="#installation">1. インストール手順</a></li>
+                <li><a href="#uninstallation">2. アンインストール手順</a></li>
+                <li><a href="#home-screen">3. ホーム画面 </a>
+                    <ul>
+                        <li><a href="#home-tab">3.1 ホームタブ</a></li>
+                        <li><a href="#employee-registration-tab">3.2 職員登録タブ</a></li>
+                        <li><a href="#user-registration-tab">3.3 利用者登録タブ</a></li>
+                        <li><a href="#announcement-tab">3.4 お知らせタブ</a></li>
+                        <li><a href="#feedback-tab">3.5 フィードバックタブ</a></li>
+                        <li><a href="#excel-import-tab">3.6 エクセルファイルインポートタブ</a></li>
+                        <li><a href="#settings-tab">3.7 設定タブ</a></li>
+                        <li><a href="#account-management-tab">3.8 アカウント管理タブ</a></li>
+                        <li><a href="#help-tab">3.9 ヘルプタブ</a></li>
+                    </ul>
+                </li>
+                <li><a href="#edit-screen">4. シフト編集画面 </a>
+                    <ul>
+                        <li><a href="#edit-main">4.1 シフト編集エリアの基本操作</a></li>
+                        <li><a href="#auto-shift-dialog">4.2 自動シフト作成ダイアログ</a></li>
+                        <li><a href="#shift-copy-dialog">4.3 シフト複製ダイアログ</a></li>
+                        <li><a href="#employee-schedule-dialog">4.4 職員の予定登録ダイアログ</a></li>
+                    </ul>
+                </li>
+                <li><a href="#output-screen">5. シフト出力画面 </a></li>
+                <li><a href="#faq">6. トラブルシューティング</a></li>
+                <li><a href="#contact">7. お問い合わせ先</a></li>
+            </ul>
+        </div>
+
+        <!-- インストール手順 -->
+        <div class="section step" id="installation">
+            <h2>1. インストール手順</h2>
+            <ol>
+                <li>https://v-shift-dev.github.io/V-Shift/にアクセスし、"V-Shiftをダウンロード"をクリック</li>
+                <li>ダウンロードしたzipファイルを解凍</li>
+                <li>解凍したフォルダを"C:\Program Files"に移動</li>
+                <li>フォルダ内の"V-Shift.exe"のショートカットをデスクトップ等任意の場所に配置</li>
+                <li>ショートカットから"V-Shift.exe"を実行</li>
+                <li>初回起動時にインストールも自動で行われます。完了したら自動的に起動します。</li>
+            </ol>
+            <div class="note">
+                <strong>注意事項：</strong>
+                <ul>
+                    <li>起動時は、必ず"V-Shift.exe"から実行してください。</li>
+                    <li>初回起動時、Windowsのセキュリティ警告が表示される場合がありますが、問題ありません。"詳細情報"をクリックし、"実行"を選択してください。</li>
+                    <li>"C:\Program Files"内に配置したV-Shiftフォルダ内に、アプリ実行に必要なファイル群が格納されています。これらのファイルは移動、削除を行わないで下さい。</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- アンインストール手順 -->
+        <div class="section step" id="uninstallation">
+            <h2>2. アンインストール手順</h2>
+            <ol>
+                <li>V-Shiftを終了</li>
+                <li>"C:\Program Files\V-Shift"フォルダを削除</li>
+                <li>デスクトップ等に配置したショートカットを削除</li>
+            </ol>
+        </div>
+
+        <!-- ホーム画面  -->
+        <div class="section step" id="home-screen">
+            <!-- ホームタブ -->
+            <div class="screen-section step" id="home-tab">
+                <h2>3. ホーム画面 </h2>
+                <h3>3.1 ホームタブ</h3>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/HomeView.png" alt="ホームタブ" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <ul class="element-list">
+                            <li class="element-item">
+                                <span class="element-number">1</span>
+                                <span class="element-title">新規シフト作成</span>
+                                <div class="element-description">新しいシフトファイルを作成します。ファイル名と保存場所を設定可能です。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">2</span>
+                                <span class="element-title">フォルダを開く</span>
+                                <div class="element-description">フォルダを選択してファイルを開きます。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">3</span>
+                                <span class="element-title">最近使ったファイルタブ</span>
+                                <div class="element-description">最近開いたファイルの一覧を表示します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">4</span>
+                                <span class="element-title">お気に入りファイルタブ</span>
+                                <div class="element-description">お気に入りに登録したファイルの一覧を表示します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">5</span>
+                                <span class="element-title">ファイルの場所をエクスプローラで開く</span>
+                                <div class="element-description">ファイルの保存場所をエクスプローラーで開きます。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">6</span>
+                                <span class="element-title">お気に入り登録</span>
+                                <div class="element-description">ファイルをお気に入りに登録・解除します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">7</span>
+                                <span class="element-title">削除</span>
+                                <div class="element-description">ファイルを最近使ったファイルの一覧から削除します。</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 職員登録タブ -->
+            <div class="screen-section step" id="employee-registration-tab">
+                <h3>3.2 職員登録タブ</h3>
+                <p>職員を登録可能です。</p>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/EmployeeRegistrationPage.png" alt="職員登録画面" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <ul class="element-list">
+                            <li class="element-item">
+                                <span class="element-number">1</span>
+                                <span class="element-title">職員名入力欄</span>
+                                <div class="element-description">職員のフルネームを入力します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">2</span>
+                                <span class="element-title">表示名入力欄（自動入力）</span>
+                                <div class="element-description">表示名を入力します。職員名から自動設定されますが、編集可能です。シフト編集画面では、同姓同名の職員を見分けるために表示名が使用されます。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">3</span>
+                                <span class="element-title">性別選択</span>
+                                <div class="element-description">性別を選択します（男・女・カスタム）。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">4</span>
+                                <span class="element-title">役職入力欄（任意）</span>
+                                <div class="element-description">役職を入力します（任意）。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">5</span>
+                                <span class="element-title">ID入力欄（任意）</span>
+                                <div class="element-description">職員IDを入力します（任意）。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">6</span>
+                                <span class="element-title">色選択</span>
+                                <div class="element-description">職員の表示色を選択します。シフト編集画面で職員ごとに色分け表示する際に使用されます。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">7</span>
+                                <span class="element-title">追加</span>
+                                <div class="element-description">入力した職員情報を登録します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">8</span>
+                                <span class="element-title">並び替え切り替え</span>
+                                <div class="element-description">ONにすると、職員リストをドラッグ&ドロップで並べ替えできます。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">9</span>
+                                <span class="element-title">職員リスト</span>
+                                <div class="element-description">登録済みの職員一覧を表示します。各要素の編集、削除が右側の３点メニューからできます。</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 利用者登録タブ -->
+            <div class="screen-section step" id="user-registration-tab">
+                <h3>3.3 利用者登録タブ</h3>
+                <p>利用者を登録可能です。</p>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/UserRegistrationPage.png" alt="利用者登録画面" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <ul class="element-list">
+                            <li class="element-item">
+                                <span class="element-number">1</span>
+                                <span class="element-title">利用者名入力欄</span>
+                                <div class="element-description">利用者のフルネームを入力します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">2</span>
+                                <span class="element-title">表示名入力欄（自動入力）</span>
+                                <div class="element-description">表示名を入力します。利用者名から自動設定されますが、編集可能です。シフト編集画面では、同姓同名の利用者を見分けるために表示名が使用されます。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">3</span>
+                                <span class="element-title">性別選択</span>
+                                <div class="element-description">性別を選択します（男・女・カスタム）。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">4</span>
+                                <span class="element-title">色選択</span>
+                                <div class="element-description">利用者の表示色を選択します。シフト編集画面で利用者ごとに色分け表示する際に使用されます。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">5</span>
+                                <span class="element-title">時間帯追加</span>
+                                <div class="element-description">利用者ごとによく使う時間帯を登録できます。シフトに入る時間がパターン化されている場合、ここに設定しておくことでシフト編集画面で素早く時間帯を設定できます（任意）。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">6</span>
+                                <span class="element-title">メモ入力欄（任意）</span>
+                                <div class="element-description">メモを入力します（任意）。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">7</span>
+                                <span class="element-title">追加</span>
+                                <div class="element-description">入力した利用者情報を登録します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">8</span>
+                                <span class="element-title">並び替え</span>
+                                <div class="element-description">ONにすると、利用者リストをドラッグ&ドロップで並べ替えできます。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">9</span>
+                                <span class="element-title">利用者リスト</span>
+                                <div class="element-description">登録済みの利用者一覧を表示します。各要素の編集、削除が右側の３点メニューからできます。</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- お知らせタブ -->
+            <div class="screen-section step" id="announcement-tab">
+                <h3>3.4 お知らせタブ</h3>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/AnnouncementTab.png" alt="お知らせタブ" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <p>過去のお知らせ情報を一覧で確認可能です。</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- フィードバックタブ -->
+            <div class="screen-section step" id="feedback-tab">
+                <h3>3.5 フィードバックタブ</h3>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/FeedbackTab.png" alt="フィードバックタブ" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <p>フィードバックフォームが表示され、要望や不具合報告を送信可能です。</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- エクセルファイルインポートタブ -->
+            <div class="screen-section step" id="excel-import-tab">
+                <h3>3.6 エクセルファイルインポートタブ</h3>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/ExcelImportTab.png" alt="エクセルファイルインポートタブ" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <p>エクセルファイルから職員、利用者情報をインポート可能です。</p>
+                        <ul>
+                            <li>インポートするエクセルファイルを選択</li>
+                            <li>インポートボタンを押すとインポート実行</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 設定タブ -->
+            <div class="screen-section step" id="settings-tab">
+                <h3>3.7 設定タブ</h3>
+                <p>シフト編集画面、シフト出力画面の各設定項目のデフォルト値の設定が可能です。</p>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/SettingsView.png" alt="設定画面" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <p>シフト編集画面と出力画面の各要素のデフォルト値を決定可能です。主な設定項目は以下の通りです：</p>
+                        <ul class="compact-list">
+                            <li>デフォルト横スクロール量</li>
+                            <li>予定タイプのデフォルト値</li>
+                            <li>繰り返し設定のデフォルト値</li>
+                            <li>コピー方法のデフォルト選択</li>
+                            <li>メモコピー選択</li>
+                            <li>労働時間制限（時間）</li>
+                            <li>パターン分析方法</li>
+                            <li>時刻表示</li>
+                            <li>利用者・職員表示切替</li>
+                            <li>月・日表示切替</li>
+                            <li>時系列表示切替</li>
+                            <li>タイムライン拡大率スライダー</li>
+                            <li>出力切り替え選択</li>
+                            <li>出力範囲選択</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- アカウント管理タブ -->
+            <div class="screen-section step" id="account-management-tab">
+                <h3>3.8 アカウント管理タブ</h3>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/AccountManagementView.png" alt="アカウント管理画面" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <ul class="element-list">
+                            <li class="element-item">
+                                <span class="element-number">1</span>
+                                <span class="element-title">ログイン状態</span>
+                                <div class="element-description">現在のログイン状態とユーザー情報を表示します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">2</span>
+                                <span class="element-title">ログアウト</span>
+                                <div class="element-description">ログアウトします。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">3</span>
+                                <span class="element-title">自動同期のON,OFF</span>
+                                <div class="element-description">ファイルの変更を自動でリアルタイム同期するかを設定します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">4</span>
+                                <span class="element-title">手動同期</span>
+                                <div class="element-description">職員リスト、利用者リストの同期を手動で実行します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">5</span>
+                                <span class="element-title">同期ログの確認</span>
+                                <div class="element-description">同期の実行履歴を表示します。</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ヘルプタブ -->
+            <div class="screen-section step" id="help-tab">
+                <h3>3.9 ヘルプタブ</h3>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/HelpView.png" alt="ヘルプ画面" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <p>アプリケーション内で使い方説明書を閲覧できます。各画面の操作方法や機能の詳細について確認可能です。<br>
+                        目次をクリックすると目的のページの説明まで移動できます。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- シフト編集画面  -->
+        <div class="section step" id="edit-screen">
+            <h2>4. シフト編集画面 </h2>
+
+            <!-- 編集画面の基本操作 -->
+            <div class="screen-section step" id="edit-main">
+                <h3>4.1 シフト編集エリアの基本操作</h3>
+                
+                <h4>ショートカットキー</h4>
+                <ul class="element-list">
+                    <li class="element-item">
+                        <span class="element-title">Shift + スクロール</span>
+                        <div class="element-description">横スクロール</div>
+                    </li>
+                    <li class="element-item">
+                        <span class="element-title">Ctrl + スクロール</span>
+                        <div class="element-description">タイムラインの拡大・縮小（日表示モード時のみ）</div>
+                    </li>
+                    <li class="element-item">
+                        <span class="element-title">Ctrl + ドラッグ＆ドロップ</span>
+                        <div class="element-description">シフトのドラッグ移動（日表示モード時のみ）</div>
+                    </li>
+                    <li class="element-item">
+                        <span class="element-title">Ctrl + C</span>
+                        <div class="element-description">選択中のシフトのコピー</div>
+                    </li>
+                    <li class="element-item">
+                        <span class="element-title">Ctrl + X</span>
+                        <div class="element-description">選択中のシフトの切り取り</div>
+                    </li>
+                    <li class="element-item">
+                        <span class="element-title">Ctrl + V</span>
+                        <div class="element-description">選択中のシフトのペースト</div>
+                    </li>
+                </ul>
+
+                <h4>マウス操作（日表示モード）</h4>
+                <ul class="element-list">
+                    <li class="element-item">
+                        <span class="element-title">左クリック</span>
+                        <div class="element-description">シフトバー選択</div>
+                    </li>
+                    <li class="element-item">
+                        <span class="element-title">右クリック</span>
+                        <div class="element-description">シフト編集メニュー表示</div>
+                    </li>
+                    <li class="element-item">
+                        <span class="element-title">タイムライン上でドラッグ</span>
+                        <div class="element-description">選択範囲にシフト新規作成</div>
+                    </li>
+                </ul>
+
+                <h4>マウス操作（月表示モード）</h4>
+                <ul class="element-list">
+                    <li class="element-item">
+                        <span class="element-title">左クリック</span>
+                        <div class="element-description">セル選択</div>
+                    </li>
+                    <li class="element-item">
+                        <span class="element-title">右クリック</span>
+                        <div class="element-description">シフト編集メニュー表示</div>
+                    </li>
+                </ul>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/MainPage.png" alt="メイン画面" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <ul class="element-list">
+                            <li class="element-item">
+                                <span class="element-number">1</span>
+                                <span class="element-title">検索ボックス</span>
+                                <div class="element-description">左上検索欄から、職員の表示名または登録名でシフトと行の検索が可能です。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">2</span>
+                                <span class="element-title">表示モード切替エリア</span>
+                                <div class="element-description">
+                                    時刻表示切替：各シフトの時刻表示の有無を切り替え<br>
+                                    利用者、職員表示切替：利用者シフトと職員シフトの表示切替<br>
+                                    月、日表示切替：シフトの表示モードを月表示と日表示で切り替え<br>
+                                    時系列表示切り替え：シフトの表示を、"登録された時間帯とその他の時間帯別"と"時系列順"で切り替え
+                                </div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">3</span>
+                                <span class="element-title">拡大率変更（日表示モード時のみ有効）</span>
+                                <div class="element-description">スライダーを移動させ、拡大率を1,2,4倍に変更可能です。月表示モード時は非表示になります。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">4</span>
+                                <span class="element-title">各種機能へのアクセスボタンエリア</span>
+                                <div class="element-description">
+                                    自動シフト作成：過去データからシフトのパターンを抽出し、指定範囲のシフトを生成<br>
+                                    シフトの複製：日付単位での指定範囲から指定範囲への範囲コピーを実行<br>
+                                    職員予定登録：職員の休み予定を登録<br>
+                                    ダブルブッキングチェック：ファイル内のすべてのシフトのダブルブッキングをチェック
+                                </div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">5</span>
+                                <span class="element-title">日付選択エリア</span>
+                                <div class="element-description">カレンダーから日付を選択し、その日付にジャンプ可能です。</div>
+                            </li>
+                        </ul>
+
+                        <h4>予約編集ダイアログ</h4>
+                        <div class="screen-container" style="margin-top: 10px;">
+                            <div class="screen-image-wrapper" style="flex: 0 0 300px;">
+                                <img src="image/EditAppointmentDialog.png" alt="予約編集ダイアログ" class="screen-image">
+                            </div>
+                            <div class="screen-content">
+                                <p>シフトをクリックまたはダブルクリックすると、予約編集ダイアログが表示されます。</p>
+                                <ul class="element-list">
+                                    <li class="element-item">
+                                        <span class="element-title">職員名/利用者名</span>
+                                        <div class="element-description">シフトに割り当てる職員または利用者を選択します。</div>
+                                    </li>
+                                    <li class="element-item">
+                                        <span class="element-title">時間帯</span>
+                                        <div class="element-description">時間帯を選択します。カスタム時間帯を選択した場合は、開始時刻と終了時刻を設定します。</div>
+                                    </li>
+                                    <li class="element-item">
+                                        <span class="element-title">色</span>
+                                        <div class="element-description">シフトの表示色を選択します。</div>
+                                    </li>
+                                    <li class="element-item">
+                                        <span class="element-title">メモ</span>
+                                        <div class="element-description">メモを入力します。</div>
+                                    </li>
+                                    <li class="element-item">
+                                        <span class="element-title">削除</span>
+                                        <div class="element-description">シフトを削除します（編集時のみ表示）。</div>
+                                    </li>
+                                </ul>
+                                <div class="note">※時間は5分単位で設定されます。</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 自動シフト作成ダイアログ -->
+            <div class="screen-section step" id="auto-shift-dialog">
+                <h3>4.2 自動シフト作成ダイアログ</h3>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/AutoShiftCreateDialog.png" alt="自動シフト作成ダイアログ" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <ul class="element-list">
+                            <li class="element-item">
+                                <span class="element-number">1</span>
+                                <span class="element-title">生成範囲</span>
+                                <div class="element-description">シフトを生成する範囲を選択します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">2</span>
+                                <span class="element-title">参照ファイル</span>
+                                <div class="element-description">新規ファイル作成時、過去データがない場合にほかのシフトファイルを参照するときに使用します。<br>
+                                    参照するファイルを選択し、参照期間を設定します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">3</span>
+                                <span class="element-title">労働時間上限設定</span>
+                                <div class="element-description">一人あたりの労働時間上限を設定します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">4</span>
+                                <span class="element-title">パターン分析方法選択</span>
+                                <div class="element-description">分析に使用するパターン分析方法を選択します。複数選択可能です。各パターンには詳細設定があり、閾値などが変更可能です。</div>
+                            </li>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">5</span>
+                                <span class="element-title">キャンセル</span>
+                                <div class="element-description">ダイアログを閉じます。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">6</span>
+                                <span class="element-title">シフト自動生成</span>
+                                <div class="element-description">設定に基づいてシフト自動生成を実行します。分析パターンが1つ以上選択されている場合のみ有効です。</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- シフト複製ダイアログ -->
+            <div class="screen-section step" id="shift-copy-dialog">
+                <h3>4.3 シフト複製ダイアログ</h3>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/ShiftCopyDialog.png" alt="シフト複製ダイアログ" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <ul class="element-list">
+                            <li class="element-item">
+                                <span class="element-number">1</span>
+                                <span class="element-title">コピー元範囲</span>
+                                <div class="element-description">コピーするシフトの開始日と終了日を選択します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">2</span>
+                                <span class="element-title">コピー先開始日</span>
+                                <div class="element-description">コピー先の開始日を選択します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">3</span>
+                                <span class="element-title">コピー対象</span>
+                                <div class="element-description">利用者、職員から、選択した人のみ複製します。何も選択しなければすべてコピーします。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">4</span>
+                                <span class="element-title">コピー方法</span>
+                                <div class="element-description">コピー先で、コピー元と曜日を合わせて貼り付けるか開始日からそのまま貼り付けるか選択します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">5</span>
+                                <span class="element-title">メモ</span>
+                                <div class="element-description">各シフトに追加されているメモもコピーするか選択します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">6</span>
+                                <span class="element-title">除外日</span>
+                                <div class="element-description">コピー元範囲内で、コピー先に反映させたくない日を指定可能です。</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 職員の予定登録ダイアログ -->
+            <div class="screen-section step" id="employee-schedule-dialog">
+                <h3>4.4 職員の予定登録ダイアログ</h3>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/EmployeeSchedulePage.png" alt="職員スケジュール画面" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <ul class="element-list">
+                            <li class="element-item">
+                                <span class="element-number">1</span>
+                                <span class="element-title">前月ボタン・次月ボタン</span>
+                                <div class="element-description">表示月を変更します。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">2</span>
+                                <span class="element-title">スケジュールグリッド</span>
+                                <div class="element-description">職員×日付のマス目を表示します。各マスをクリックすると、その職員のその日の予定を編集できます。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">3</span>
+                                <span class="element-title">予定タイプ選択</span>
+                                <div class="element-description">予定のタイプを選択します（一日休み・午前半休・午後半休・カスタム時間帯）。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">4</span>
+                                <span class="element-title">理由入力テキストボックス</span>
+                                <div class="element-description">予定の理由を入力します（任意）。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">5</span>
+                                <span class="element-title">繰り返し設定</span>
+                                <div class="element-description">予定の繰り返しパターンを選択します（繰り返しなし・毎週同じ曜日・毎月同じ日・毎年同じ日）。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">6</span>
+                                <span class="element-title">削除ボタン・保存ボタン</span>
+                                <div class="element-description">選択した予定を削除または保存します。</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 出力画面  -->
+        <div class="section step" id="output-screen">
+            <h2>3. シフト出力画面 </h2>
+            <div class="screen-container">
+                <div class="screen-image-wrapper">
+                    <img src="image/OutputPage.png" alt="出力画面" class="screen-image">
+                </div>
+                <div class="screen-content">
+                    <ul class="element-list">
+                        <li class="element-item">
+                            <span class="element-number">1</span>
+                            <span class="element-title">出力切り替え</span>
+                            <div class="element-description">シフト出力、勤務表出力の切り替えが可能です。</div>
+                        </li>
+                        <li class="element-item">
+                            <span class="element-number">2</span>
+                            <span class="element-title">出力範囲</span>
+                            <div class="element-description">出力範囲の開始日、終了日の設定が可能です。</div>
+                        </li>
+                        <li class="element-item">
+                            <span class="element-number">3</span>
+                            <span class="element-title">表の選択エリア（シフト出力モード時）</span>
+                            <div class="element-description">シフト表、職員の予定表の選択が可能です。</div>
+                        </li>
+                        <li class="element-item">
+                            <span class="element-number">4</span>
+                            <span class="element-title">表示項目選択エリア</span>
+                            <div class="element-description">
+                                <span class="element-title">シフト出力モード時</span>
+                                <div class="element-description">
+                                    利用者、職員表示切替：利用者シフトと職員シフトの表示切替<br>
+                                    メモ表示切替：各シフトに追加されたメモの表示有無切替<br>
+                                    タイムライン表示切替：タイムラインの表示有無切替（範囲が1日だけの場合のみ有効）<br>
+                                    時系列表示切替：シフトの表示を、"登録された時間帯とその他の時間帯別"と"時系列順"で切り替え（利用者モードの時のみ有効）<br>
+                                    名前表示：表示名を使用するか登録名を使用するか選択<br>
+                                    勤務時間の表示：各シフトの勤務時間表示方法を選択</br></div>
+                                <span class="element-title">勤務表出力モード時</span>
+                                <div class="element-description">
+                                    名前表示：表示名を使用するか登録名を使用するか選択<br>
+                                    時間帯別集計選択：選択した時間帯内での勤務時間の合計時間の列を追加。勤務時間帯設定を編集ボタンから、勤務時間帯名、開始時刻、終了時刻、曜日の編集、要素の追加、削除が可能
+                                </div>
+                            </div>
+                        </li>
+                        <li class="element-item">
+                            <span class="element-number">5</span>
+                            <span class="element-title">出力ボタン</span>
+                            <div class="element-description">エクセルファイルとして出力可能です。ボタンを押すと保存場所を選択可能です。</div>
+                        </li>
+                        <li class="element-item">
+                            <span class="element-number">6</span>
+                            <span class="element-title">プレビューエリア</span>
+                            <div class="element-description">出力イメージのプレビューが表示されます。</div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- トラブルシューティングセクション -->
+        <div class="section step" id="faq">
+            <h2>6. トラブルシューティング</h2>
+
+            <div class="faq-item">
+                <div class="faq-question">Q. ログインできません</div>
+                <div class="faq-answer">A. 以下の点を確認してください。
+                    <ul>
+                        <li>インターネットに接続されているか</li>
+                        <li>メールアドレス、パスワードが正しいか</li>
+                        <li>アカウント登録が完了しているか</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Q. シフトを誤って削除してしまいました。復元できますか？</div>
+                <div class="faq-answer">A. 現在のバージョンでは、シフトの復元機能は実装されていません。今後のアップデートでの実装を検討しています。</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Q. 自動シフト作成で生成されたシフトを調整したいです。</div>
+                <div class="faq-answer">A. 自動生成されたシフトは、通常のシフトと同様に編集・移動・削除が可能です。</div>
+            </div>
+
+            <div class="faq-item">
+                <div class="faq-question">Q. 複数のシフトファイルを同時に開けますか？</div>
+                <div class="faq-answer">A. 現在のバージョンでは、1つのシフトファイルのみを開くことができます。別のファイルを開く場合は、現在のファイルを閉じてから新しいファイルを開いてください。
+                </div>
+            </div>
+        </div>
+
+        <!-- お問い合わせ先セクション -->
+        <div class="section step" id="contact">
+            <h2>7. お問い合わせ先</h2>
+            <div class="contact-info">
+                <p>V-Shiftに関するご質問、ご要望、不具合の報告などがございましたら、以下の方法でお問い合わせください。</p>
+                <ul>
+                    <li><strong>フィードバック機能：</strong>ホーム画面の「フィードバック」タブから、アプリケーション内で直接フィードバックを送信できます。</li>
+                    <li><strong>メール：</strong>vshiftmanager@gmail.com</li>
+                </ul>
+                <p style="margin-top: 20px;">
+                    <strong>※</strong>お問い合わせの際は、問題が発生した画面や操作手順、エラーメッセージなどの情報を含めていただくと、より迅速に対応できます。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 画像の読み込み完了を待つ
+        function waitForImages() {
+            const images = document.querySelectorAll('img');
+            const imagePromises = Array.from(images).map(img => {
+                return new Promise((resolve, reject) => {
+                    if (img.complete) {
+                        resolve();
+                    } else {
+                        img.onload = resolve;
+                        img.onerror = resolve; // エラーでも続行
+                    }
+                });
+            });
+            return Promise.all(imagePromises);
+        }
+
+        // 描画完了フラグを設定
+        function setPdfReady() {
+            // すべての画像が読み込まれるまで待つ
+            waitForImages().then(() => {
+                // 少し遅延を入れてレンダリングを完了させる
+                setTimeout(() => {
+                    window.__pdfReady = true;
+                    console.log('PDF ready flag set');
+                }, 100);
+            });
+        }
+
+        // DOMContentLoaded で実行
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setPdfReady);
+        } else {
+            setPdfReady();
+        }
+
+        // ページ読み込み完了時にも実行（念のため）
+        window.addEventListener('load', setPdfReady);
+    </script>
+</body>
+
+</html>
