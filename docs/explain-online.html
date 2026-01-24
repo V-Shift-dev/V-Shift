@@ -954,7 +954,7 @@
 
             <!-- 自動シフト作成ダイアログ -->
             <div class="screen-section step" id="auto-shift-dialog">
-                <h3>4.2 自動シフト作成ダイアログ</h3>
+                <h3>2.2 自動シフト作成ダイアログ</h3>
                 <div class="screen-container">
                     <div class="screen-image-wrapper">
                         <img src="image/AutoShiftCreateDialog.png" alt="自動シフト作成ダイアログ" class="screen-image">
@@ -968,30 +968,71 @@
                             </li>
                             <li class="element-item">
                                 <span class="element-number">2</span>
-                                <span class="element-title">参照ファイル</span>
-                                <div class="element-description">新規ファイル作成時、過去データがない場合にほかのシフトファイルを参照するときに使用します。<br>
-                                    参照するファイルを選択し、参照期間を設定します。</div>
-                            </li>
-                            <li class="element-item">
-                                <span class="element-number">3</span>
                                 <span class="element-title">労働時間上限設定</span>
                                 <div class="element-description">一人あたりの労働時間上限を設定します。</div>
                             </li>
                             <li class="element-item">
+                                <span class="element-number">3</span>
+                                <span class="element-title">職員休暇予定</span>
+                                <div class="element-description">職員の休暇設定画面を開きます。休暇予定を設定した職員は、シフト自動生成時に考慮されます。</div>
+                            </li>
+                            <li class="element-item">
                                 <span class="element-number">4</span>
                                 <span class="element-title">パターン分析方法選択</span>
-                                <div class="element-description">分析に使用するパターン分析方法を選択します。複数選択可能です。各パターンには詳細設定があり、閾値などが変更可能です。</div>
-                            </li>
+                                <div class="element-description">
+                                    分析に使用するパターン分析方法を選択します。複数選択可能です。</br>
+                                    各パターンは、閾値が変更可能です。閾値は０以上の整数で指定可能で、数値が大きいほど生成量が多くなります。</div>
                             </li>
                             <li class="element-item">
                                 <span class="element-number">5</span>
+                                <span class="element-title">参照ファイル</span>
+                                <div class="element-description">新規ファイル作成時、過去データがない場合にほかのシフトファイルを参照するときに使用します。<br>
+                                    参照するファイルを選択し、参照期間を設定します。</div>
+                            </li>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">6</span>
                                 <span class="element-title">キャンセル</span>
                                 <div class="element-description">ダイアログを閉じます。</div>
                             </li>
                             <li class="element-item">
-                                <span class="element-number">6</span>
+                                <span class="element-number">7</span>
                                 <span class="element-title">シフト自動生成</span>
-                                <div class="element-description">設定に基づいてシフト自動生成を実行します。分析パターンが1つ以上選択されている場合のみ有効です。</div>
+                                <div class="element-description">設定に基づいてシフト自動生成を実行し、プレビューを表示します。分析パターンが1つ以上選択されている場合のみ有効です。</div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 自動シフト作成結果プレビュー -->
+            <div class="screen-section step" id="auto-shift-preview">
+                <h3>2.2.1 自動シフト作成結果プレビュー</h3>
+                <div class="screen-container">
+                    <div class="screen-image-wrapper">
+                        <img src="image/AutoShiftCreatePreview.png" alt="自動シフト作成結果プレビュー画面" class="screen-image">
+                    </div>
+                    <div class="screen-content">
+                        <ul class="element-list">
+                            <li class="element-item">
+                                <span class="element-number">1</span>
+                                <span class="element-title">プレビューエリア</span>
+                                <div class="element-description">生成された自動シフトをプレビューします。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">2</span>
+                                <span class="element-title">利用者・職員表示切替</span>
+                                <div class="element-description">利用者シフトと職員シフトの表示切替が可能です。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">3</span>
+                                <span class="element-title">戻るボタン</span>
+                                <div class="element-description">自動シフト作成設定画面に戻ります。</div>
+                            </li>
+                            <li class="element-item">
+                                <span class="element-number">4</span>
+                                <span class="element-title">適用ボタン</span>
+                                <div class="element-description">生成範囲のシフトがプレビューに表示されているシフトで上書き保存されます。この変更は元に戻せません。</div>
                             </li>
                         </ul>
                     </div>
