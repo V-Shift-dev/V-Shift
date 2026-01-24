@@ -915,10 +915,18 @@
     <div class="container">
       <div class="logo">V-Shift</div>
       <ul>
-        <li><a href="#install">ダウンロード</a></li>
-        <li><a href="#features">機能</a></li>
-        <li><a href="#specs">動作環境</a></li>
-        <li><a href="javascript:void(0)" onclick="openManual()">使い方</a></li>
+        <li><a href="#install"
+            onclick="gtag('event', 'click', {'event_category': 'navigation', 'event_label': 'nav_install'});">ダウンロード</a>
+        </li>
+        <li><a href="#features"
+            onclick="gtag('event', 'click', {'event_category': 'navigation', 'event_label': 'nav_features'});">機能</a>
+        </li>
+        <li><a href="#specs"
+            onclick="gtag('event', 'click', {'event_category': 'navigation', 'event_label': 'nav_specs'});">動作環境</a>
+        </li>
+        <li><a href="javascript:void(0)"
+            onclick="gtag('event', 'click', {'event_category': 'navigation', 'event_label': 'nav_manual'}); openManual()">使い方</a>
+        </li>
       </ul>
     </div>
   </nav>
@@ -928,7 +936,8 @@
     <div class="hero-content">
       <h1>V-Shift</h1>
       <p>シフト管理を、もっとスマートに。<br>介護施設のシフト作成をもっとラクに！</p>
-      <a href="#install" class="cta-button">
+      <a href="#install" class="cta-button"
+        onclick="gtag('event', 'click', {'event_category': 'hero', 'event_label': 'hero_cta'});">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
           <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
         </svg>
@@ -945,7 +954,8 @@
 
       <!-- Download Area -->
       <div class="download-section">
-        <button class="terms-toggle" onclick="toggleTerms()">
+        <button class="terms-toggle"
+          onclick="gtag('event', 'click', {'event_category': 'download', 'event_label': 'toggle_terms'}); toggleTerms()">
           <svg id="terms-arrow" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"
             style="transition: transform 0.3s;">
             <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
@@ -1006,7 +1016,8 @@
             </h3>
             <p>V-Shiftアプリケーションです。インストーラーをダウンロードして、お使いのWindowsコンピューターにインストールしてください。</p>
             <a href="V-Shift-Installer.zip" id="main-download-btn" class="download-button disabled"
-              download="V-Shift-Installer.zip" onclick="return checkTermsAgreement(event)">
+              download="V-Shift-Installer.zip"
+              onclick="gtag('event', 'download', {'event_category': 'download', 'event_label': 'app_installer'}); return checkTermsAgreement(event)">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
               </svg>
@@ -1024,7 +1035,8 @@
             </h3>
             <p>V-Shiftにインポート可能なエクセルシフト表の入力形式テンプレートです。既存のエクセルファイルがある場合に便利です。</p>
             <a href="エクセルシフト表＿入力形式.xlsx" id="template-download-btn" class="download-button disabled"
-              download="エクセルシフト表_入力形式.xlsx" onclick="return checkTermsAgreement(event)">
+              download="エクセルシフト表_入力形式.xlsx"
+              onclick="gtag('event', 'download', {'event_category': 'download', 'event_label': 'excel_template'}); return checkTermsAgreement(event)">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
               </svg>
@@ -1081,8 +1093,9 @@
             V-Shiftのすべての機能を網羅したオンライン説明書をご用意しています。
             <br>アプリ内のヘルプタブからもこの説明書は確認可能です。
           </p>
-          <a href="javascript:void(0)" onclick="openManual()" class="cta-button"
-            style="padding: 1.25rem 3rem; font-size: 1.1rem;">
+          <a href="javascript:void(0)"
+            onclick="gtag('event', 'click', {'event_category': 'manual', 'event_label': 'manual_button'}); openManual()"
+            class="cta-button" style="padding: 1.25rem 3rem; font-size: 1.1rem;">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path
                 d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
@@ -1097,7 +1110,7 @@
               style="width: 100%; border-radius: 12px; opacity: 0.8; filter: brightness(0.7);">
             <div
               style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80px; height: 80px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 30px var(--primary); cursor: pointer;"
-              onclick="openManual()">
+              onclick="gtag('event', 'click', {'event_category': 'manual', 'event_label': 'manual_icon'}); openManual()">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
                 <path
                   d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z" />
