@@ -484,19 +484,19 @@
         <div class="section step" id="installation">
             <h2>1. インストール手順</h2>
             <ol>
-                <li>https://v-shift-dev.github.io/V-Shift/にアクセスし、"V-Shiftをダウンロード"をクリック</li>
-                <li>ダウンロードしたzipファイルを解凍</li>
-                <li>解凍したフォルダを"C:\Program Files"に移動</li>
-                <li>フォルダ内の"V-Shift.exe"のショートカットをデスクトップ等任意の場所に配置</li>
-                <li>ショートカットから"V-Shift.exe"を実行</li>
-                <li>初回起動時にインストールも自動で行われます。完了したら自動的に起動します。</li>
+                <li><strong>ダウンロード & 解凍：</strong>ダウンロードサイトからファイルを保存し、右クリックで解凍してください。
+                    <br><span style="color: #d9534f;">※フォルダ内のファイルは移動・削除しないでください（正常に動作しなくなります）。</span>
+                </li>
+                <li><strong>フォルダの移動：</strong>安定してご利用いただくため、解凍したフォルダごと<strong>「C:¥Program
+                        Files」</strong>へ移動することを強くお勧めします。</li>
+                <li><strong>ショートカット作成：</strong>フォルダ内の<strong>「V-Shift.exe」</strong>を右クリックし、「ショートカットの作成」を選択してデスクトップ等に配置してください。次からはそのショートカットから起動できます。
+                </li>
             </ol>
             <div class="note">
                 <strong>注意事項：</strong>
                 <ul>
-                    <li>起動時は、必ず"V-Shift.exe"から実行してください。</li>
-                    <li>初回起動時、Windowsのセキュリティ警告が表示される場合がありますが、問題ありません。"詳細情報"をクリックし、"実行"を選択してください。</li>
-                    <li>"C:\Program Files"内に配置したV-Shiftフォルダ内に、アプリ実行に必要なファイル群が格納されています。これらのファイルは移動、削除を行わないで下さい。</li>
+                    <li>初回起動時、Windowsのセキュリティ警告（SmartScreen）が表示される場合がありますが、問題ありません。「詳細情報」をクリックし、「実行」を選択してください。</li>
+                    <li>本ソフトはレジストリを使用しないため、解凍したフォルダをそのまま使用できます。</li>
                 </ul>
             </div>
         </div>
@@ -504,11 +504,15 @@
         <!-- アンインストール手順 -->
         <div class="section step" id="uninstallation">
             <h2>2. アンインストール手順</h2>
+            <p>本ソフトは「プログラムの追加と削除」には表示されません。以下の手順で削除可能です。</p>
             <ol>
-                <li>V-Shiftを終了</li>
-                <li>"C:\Program Files\V-Shift"フォルダを削除</li>
-                <li>デスクトップ等に配置したショートカットを削除</li>
+                <li>V-Shiftを終了します。</li>
+                <li>配置した「V-Shift」フォルダ（C:¥Program Files内のもの等）をフォルダごと削除します。</li>
+                <li>作成したデスクトップのショートカットを削除します。</li>
             </ol>
+            <div class="note">
+                <p>※設定やログを完全に消去したい場合は、<code>%AppData%\V-Shift</code> フォルダもあわせて削除してください。</p>
+            </div>
         </div>
 
         <!-- ホーム画面  -->
@@ -581,7 +585,8 @@
                             <li class="element-item">
                                 <span class="element-number">2</span>
                                 <span class="element-title">表示名入力欄（自動入力）</span>
-                                <div class="element-description">表示名を入力します。職員名から自動設定されますが、編集可能です。シフト編集画面では、同姓同名の職員を見分けるために表示名が使用されます。</div>
+                                <div class="element-description">
+                                    表示名を入力します。職員名から自動設定されますが、編集可能です。シフト編集画面では、同姓同名の職員を見分けるために表示名が使用されます。</div>
                             </li>
                             <li class="element-item">
                                 <span class="element-number">3</span>
@@ -641,7 +646,8 @@
                             <li class="element-item">
                                 <span class="element-number">2</span>
                                 <span class="element-title">表示名入力欄（自動入力）</span>
-                                <div class="element-description">表示名を入力します。利用者名から自動設定されますが、編集可能です。シフト編集画面では、同姓同名の利用者を見分けるために表示名が使用されます。</div>
+                                <div class="element-description">
+                                    表示名を入力します。利用者名から自動設定されますが、編集可能です。シフト編集画面では、同姓同名の利用者を見分けるために表示名が使用されます。</div>
                             </li>
                             <li class="element-item">
                                 <span class="element-number">3</span>
@@ -656,7 +662,9 @@
                             <li class="element-item">
                                 <span class="element-number">5</span>
                                 <span class="element-title">時間帯追加</span>
-                                <div class="element-description">利用者ごとによく使う時間帯を登録できます。シフトに入る時間がパターン化されている場合、ここに設定しておくことでシフト編集画面で素早く時間帯を設定できます（任意）。</div>
+                                <div class="element-description">
+                                    利用者ごとによく使う時間帯を登録できます。シフトに入る時間がパターン化されている場合、ここに設定しておくことでシフト編集画面で素早く時間帯を設定できます（任意）。
+                                </div>
                             </li>
                             <li class="element-item">
                                 <span class="element-number">6</span>
@@ -804,7 +812,7 @@
                     </div>
                     <div class="screen-content">
                         <p>アプリケーション内で使い方説明書を閲覧できます。各画面の操作方法や機能の詳細について確認可能です。<br>
-                        目次をクリックすると目的のページの説明まで移動できます。</p>
+                            目次をクリックすると目的のページの説明まで移動できます。</p>
                     </div>
                 </div>
             </div>
@@ -817,7 +825,7 @@
             <!-- 編集画面の基本操作 -->
             <div class="screen-section step" id="edit-main">
                 <h3>4.1 シフト編集エリアの基本操作</h3>
-                
+
                 <h4>ショートカットキー</h4>
                 <ul class="element-list">
                     <li class="element-item">
@@ -930,7 +938,8 @@
                                     </li>
                                     <li class="element-item">
                                         <span class="element-title">時間帯</span>
-                                        <div class="element-description">時間帯を選択します。カスタム時間帯を選択した場合は、開始時刻と終了時刻を設定します。</div>
+                                        <div class="element-description">時間帯を選択します。カスタム時間帯を選択した場合は、開始時刻と終了時刻を設定します。
+                                        </div>
                                     </li>
                                     <li class="element-item">
                                         <span class="element-title">色</span>
@@ -998,7 +1007,8 @@
                             <li class="element-item">
                                 <span class="element-number">7</span>
                                 <span class="element-title">シフト自動生成</span>
-                                <div class="element-description">設定に基づいてシフト自動生成を実行し、プレビューを表示します。分析パターンが1つ以上選択されている場合のみ有効です。</div>
+                                <div class="element-description">
+                                    設定に基づいてシフト自動生成を実行し、プレビューを表示します。分析パターンが1つ以上選択されている場合のみ有効です。</div>
                             </li>
                         </ul>
                     </div>
