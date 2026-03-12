@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お知らせ - V-Shift</title>
+    <link rel="stylesheet" href="index.css">
+    <style>
+        .news-page-header {
+            padding: 12rem 0 4rem;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="container">
+            <div class="logo"><a href="index.html"
+                    style="text-decoration: none; color: inherit; background: inherit; -webkit-background-clip: inherit; background-clip: inherit; -webkit-text-fill-color: inherit;">V-Shift</a>
+            </div>
+            <ul>
+                <li><a href="index.html">トップ</a></li>
+                <li><a href="index.html#install">ダウンロード</a></li>
+                <li><a href="index.html#pricing">有料化の予告</a></li>
+                <li><a href="index.html#guide">使い方</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <header class="news-page-header">
+            <h1 class="section-title">お知らせ</h1>
+            <p class="section-subtitle">V-Shiftの最新情報やアップデート情報をお届けします。</p>
+        </header>
+
+        <div id="news-list" class="news-list">
+            <!-- News items will be loaded here by news.js -->
+            <div style="text-align: center; padding: 4rem;">
+                <p>お知らせを読み込み中...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <p>© 2025 V-Shift - indie Developer. All rights reserved.</p>
+            <p style="font-size: 0.8rem; margin-top: 1rem; opacity: 0.6;">お問い合わせ: vshiftdev@gmail.com</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="news.js"></script>
+</body>
+
+</html>

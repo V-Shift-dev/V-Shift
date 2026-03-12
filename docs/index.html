@@ -69,890 +69,8 @@
   }
   </script>
 
-  <style>
-    :root {
-      --primary: #6366f1;
-      --primary-dark: #4f46e5;
-      --secondary: #8b5cf6;
-      --accent: #06b6d4;
-      --success: #10b981;
-      --warning: #f59e0b;
-      --text-primary: #f8fafc;
-      --text-secondary: #cbd5e1;
-      --text-accent: #94a3b8;
-      --card-bg: rgba(15, 23, 42, 0.8);
-      --card-border: rgba(255, 255, 255, 0.08);
-      --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-      --backdrop-blur: blur(12px);
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0a0e1a;
-      color: var(--text-primary);
-      line-height: 1.7;
-      overflow-x: hidden;
-      position: relative;
-    }
-
-    /* Abstract Gradient Background */
-    body::before {
-      content: '';
-      position: fixed;
-      top: -50%;
-      left: -50%;
-      width: 200%;
-      height: 200%;
-      background:
-        radial-gradient(circle at 20% 30%, rgba(99, 102, 241, 0.3) 0%, transparent 40%),
-        radial-gradient(circle at 80% 70%, rgba(139, 92, 246, 0.3) 0%, transparent 40%),
-        radial-gradient(circle at 40% 80%, rgba(6, 182, 212, 0.2) 0%, transparent 40%);
-      animation: gradientMove 20s ease-in-out infinite;
-      z-index: -2;
-    }
-
-    body::after {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      backdrop-filter: blur(100px);
-      -webkit-backdrop-filter: blur(100px);
-      z-index: -1;
-      pointer-events: none;
-    }
-
-    @keyframes gradientMove {
-
-      0%,
-      100% {
-        transform: translate(0, 0) rotate(0deg);
-      }
-
-      33% {
-        transform: translate(5%, -5%) rotate(120deg);
-      }
-
-      66% {
-        transform: translate(-5%, 5%) rotate(240deg);
-      }
-    }
-
-    /* Scrollbar */
-    ::-webkit-scrollbar {
-      width: 10px;
-    }
-
-    ::-webkit-scrollbar-track {
-      background: rgba(15, 23, 42, 0.5);
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background: linear-gradient(180deg, var(--primary), var(--secondary));
-      border-radius: 5px;
-    }
-
-    /* Navigation */
-    nav {
-      position: fixed;
-      top: 0;
-      width: 100%;
-      background: rgba(15, 23, 42, 0.7);
-      backdrop-filter: blur(20px) saturate(180%);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-      z-index: 1000;
-      padding: 1rem 0;
-    }
-
-    nav .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 0 2rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    nav .logo {
-      font-size: 1.8rem;
-      font-weight: 900;
-      background: linear-gradient(135deg, #ffffff, #e2e8f0);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    nav ul {
-      display: flex;
-      gap: 2rem;
-      list-style: none;
-    }
-
-    nav a {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-weight: 500;
-      transition: color 0.3s;
-    }
-
-    nav a:hover {
-      color: var(--text-primary);
-    }
-
-    /* Container */
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 0 2rem;
-    }
-
-    /* Hero Section */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 8rem 0 4rem;
-      position: relative;
-    }
-
-    .hero-content {
-      max-width: 900px;
-    }
-
-    .hero h1 {
-      font-size: 5rem;
-      font-weight: 900;
-      background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 2rem;
-      line-height: 1.2;
-    }
-
-    .hero p {
-      font-size: 1.5rem;
-      color: var(--text-secondary);
-      margin-bottom: 3rem;
-    }
-
-    .cta-button {
-      display: inline-flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 1.5rem 4rem;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: white;
-      text-decoration: none;
-      border-radius: 60px;
-      font-size: 1.3rem;
-      font-weight: 600;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 20px 40px rgba(99, 102, 241, 0.3);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .cta-button::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-      transition: left 0.7s ease;
-    }
-
-    .cta-button:hover::before {
-      left: 100%;
-    }
-
-    .cta-button:hover {
-      transform: translateY(-3px) scale(1.02);
-      box-shadow: 0 30px 60px rgba(99, 102, 241, 0.4);
-    }
-
-    /* Section */
-    section {
-      padding: 6rem 0;
-    }
-
-    .section-title {
-      font-size: 3rem;
-      font-weight: 800;
-      text-align: center;
-      margin-bottom: 1rem;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .section-subtitle {
-      text-align: center;
-      color: var(--text-secondary);
-      font-size: 1.2rem;
-      margin-bottom: 4rem;
-      max-width: 700px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-
-    /* Features Grid */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-      gap: 2rem;
-      margin-top: 4rem;
-    }
-
-    .feature-card {
-      background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(20px) saturate(180%);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 24px;
-      padding: 2.5rem;
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
-
-    .feature-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--primary), var(--secondary));
-      transform: scaleX(0);
-      transition: transform 0.3s ease;
-    }
-
-    .feature-card:hover::before {
-      transform: scaleX(1);
-    }
-
-    .feature-card:hover {
-      transform: translateY(-8px);
-      border-color: rgba(255, 255, 255, 0.15);
-    }
-
-    .feature-icon {
-      width: 60px;
-      height: 60px;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 1.5rem;
-    }
-
-    .feature-card h3 {
-      font-size: 1.3rem;
-      margin-bottom: 1rem;
-      color: var(--text-primary);
-    }
-
-    .feature-card p {
-      color: var(--text-secondary);
-      line-height: 1.7;
-    }
-
-    /* Download Section */
-    .download-section {
-      background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(20px) saturate(180%);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 32px;
-      padding: 4rem;
-      margin: 4rem 0;
-      position: relative;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
-
-    .download-section::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--primary), var(--secondary));
-    }
-
-    .terms-toggle {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--card-border);
-      color: var(--text-primary);
-      font-weight: 700;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1rem;
-      font-size: 1.2rem;
-      padding: 1.5rem;
-      border-radius: 16px;
-      transition: all 0.3s ease;
-      width: 100%;
-      margin-bottom: 2rem;
-    }
-
-    .terms-toggle:hover {
-      background: rgba(255, 255, 255, 0.06);
-    }
-
-    .terms-content {
-      display: none;
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 16px;
-      padding: 2rem;
-      margin-bottom: 2rem;
-      max-height: 400px;
-      overflow-y: auto;
-      font-size: 0.9rem;
-      line-height: 1.8;
-      color: var(--text-secondary);
-      border: 1px solid var(--card-border);
-    }
-
-    .terms-content h4 {
-      color: var(--text-primary);
-      font-size: 1.3rem;
-      margin-bottom: 1.5rem;
-    }
-
-    .terms-content h5 {
-      color: var(--text-primary);
-      font-size: 1.1rem;
-      margin: 2rem 0 1rem 0;
-    }
-
-    .terms-agreement {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 1rem;
-      margin: 2rem 0;
-      padding: 1.5rem;
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 16px;
-    }
-
-    .agreement-checkbox {
-      width: 24px;
-      height: 24px;
-      cursor: pointer;
-      accent-color: var(--primary);
-    }
-
-    .agreement-label {
-      color: var(--text-primary);
-      font-weight: 600;
-      cursor: pointer;
-      font-size: 1.1rem;
-    }
-
-    .download-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-      gap: 2rem;
-      margin-top: 2rem;
-    }
-
-    .download-item {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid var(--card-border);
-      border-radius: 24px;
-      padding: 2.5rem;
-      transition: all 0.3s ease;
-    }
-
-    .download-item:hover {
-      transform: translateY(-4px);
-      border-color: rgba(255, 255, 255, 0.15);
-    }
-
-    .download-item.beta {
-      border-color: rgba(245, 158, 11, 0.3);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .download-item.beta::after {
-      content: 'TESTING';
-      position: absolute;
-      top: 15px;
-      right: -30px;
-      background: var(--warning);
-      color: #000;
-      padding: 5px 40px;
-      font-size: 0.7rem;
-      font-weight: 900;
-      transform: rotate(45deg);
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-    }
-
-    .beta-badge {
-      background: var(--warning);
-      color: #000;
-      padding: 0.25rem 0.75rem;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 800;
-    }
-
-    .warning-box {
-      background: rgba(245, 158, 11, 0.1);
-      border: 1px solid rgba(245, 158, 11, 0.2);
-      padding: 1rem;
-      margin: 1rem 0 2rem 0;
-      border-radius: 12px;
-      font-size: 0.85rem;
-      line-height: 1.6;
-    }
-
-    .warning-box strong {
-      color: var(--warning);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0.25rem;
-    }
-
-    .download-item h3 {
-      font-size: 1.5rem;
-      margin-bottom: 1rem;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .download-item p {
-      color: var(--text-secondary);
-      margin-bottom: 2rem;
-      line-height: 1.7;
-    }
-
-    .download-button {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 1rem 2.5rem;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
-      color: white;
-      text-decoration: none;
-      border-radius: 50px;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
-    }
-
-    .download-button:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 15px 40px rgba(99, 102, 241, 0.4);
-    }
-
-    .download-button.disabled {
-      background: linear-gradient(135deg, #64748b, #475569);
-      cursor: not-allowed;
-      opacity: 0.6;
-    }
-
-    .download-button.disabled:hover {
-      transform: none;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-    }
-
-    /* Screenshots Section */
-    .screenshot-grid {
-      display: grid;
-      gap: 6rem;
-      margin-top: 4rem;
-    }
-
-    .screenshot-item {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4rem;
-      align-items: center;
-    }
-
-    .screenshot-item.reverse {
-      direction: rtl;
-    }
-
-    .screenshot-item.reverse>* {
-      direction: ltr;
-    }
-
-    .screenshot-image {
-      position: relative;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-      transition: all 0.3s ease;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .screenshot-image:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
-    }
-
-    .screenshot-image img {
-      width: 100%;
-      height: auto;
-      display: block;
-    }
-
-    .screenshot-content h3 {
-      font-size: 1.8rem;
-      font-weight: 700;
-      margin-bottom: 1.5rem;
-      color: var(--text-primary);
-    }
-
-    .screenshot-content p {
-      color: var(--text-secondary);
-      font-size: 1.05rem;
-      line-height: 1.8;
-    }
-
-    /* Specs Section */
-    .spec-card {
-      background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(20px) saturate(180%);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 24px;
-      padding: 3rem;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-      margin-top: 3rem;
-    }
-
-    .spec-table {
-      width: 100%;
-      border-collapse: collapse;
-      background: rgba(15, 23, 42, 0.4);
-      border-radius: 16px;
-      overflow: hidden;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .spec-table th {
-      background: rgba(0, 0, 0, 0.3);
-      padding: 1.5rem;
-      text-align: left;
-      font-weight: 600;
-      color: var(--text-primary);
-      font-size: 1rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .spec-table td {
-      padding: 1.5rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      color: var(--text-secondary);
-      font-size: 0.95rem;
-      line-height: 1.6;
-    }
-
-    .spec-table tr:last-child td {
-      border-bottom: none;
-    }
-
-    .spec-table tr:hover {
-      background: rgba(255, 255, 255, 0.02);
-    }
-
-    .spec-item {
-      font-weight: 600;
-      color: var(--text-primary) !important;
-    }
-
-    /* Installation Steps */
-    .steps-container {
-      display: grid;
-      gap: 2rem;
-      margin-top: 3rem;
-    }
-
-    .step-card {
-      background: rgba(15, 23, 42, 0.6);
-      backdrop-filter: blur(20px) saturate(180%);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 24px;
-      padding: 2.5rem;
-      position: relative;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-    }
-
-    .step-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--success), #059669);
-    }
-
-    .step-card h3 {
-      font-size: 1.8rem;
-      margin-bottom: 2rem;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .step-icon {
-      width: 50px;
-      height: 50px;
-      background: linear-gradient(135deg, var(--success), #059669);
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .step-card ol {
-      margin-left: 1.5rem;
-      color: var(--text-secondary);
-    }
-
-    .step-card li {
-      margin: 1rem 0;
-      line-height: 1.7;
-    }
-
-    .note {
-      background: rgba(245, 158, 11, 0.1);
-      border-left: 4px solid var(--warning);
-      padding: 1.5rem;
-      margin: 2rem 0;
-      border-radius: 8px;
-      color: var(--text-secondary);
-    }
-
-    .note strong {
-      color: var(--text-primary);
-      display: block;
-      margin-bottom: 0.5rem;
-    }
-
-    /* Footer */
-    footer {
-      text-align: center;
-      padding: 4rem 0;
-      color: var(--text-accent);
-      background: rgba(15, 23, 42, 0.7);
-      backdrop-filter: blur(20px) saturate(180%);
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      margin-top: 6rem;
-      box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.3);
-    }
-
-    /* Responsive */
-    @media (max-width: 1024px) {
-      .screenshot-item {
-        grid-template-columns: 1fr;
-        gap: 2rem;
-      }
-
-      .screenshot-item.reverse {
-        direction: ltr;
-      }
-    }
-
-    @media (max-width: 768px) {
-      nav ul {
-        display: none;
-      }
-
-      .hero h1 {
-        font-size: 3rem;
-      }
-
-      .hero p {
-        font-size: 1.2rem;
-      }
-
-      .section-title {
-        font-size: 2rem;
-      }
-
-      .features-grid,
-      .download-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .container {
-        padding: 0 1rem;
-      }
-
-      .spec-card {
-        padding: 1.5rem;
-      }
-
-      .spec-table th,
-      .spec-table td {
-        padding: 1rem;
-        font-size: 0.85rem;
-      }
-
-      .screenshot-grid {
-        gap: 3rem;
-      }
-    }
-
-    /* Modal styles */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(10px);
-      z-index: 2000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      opacity: 0;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .modal-overlay.active {
-      display: flex;
-      opacity: 1;
-    }
-
-    .modal-container {
-      width: 95%;
-      max-width: 1400px;
-      height: 90vh;
-      background: #ffffff;
-      border-radius: 24px;
-      overflow: hidden;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      transform: translateY(20px) scale(0.95);
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .modal-overlay.active .modal-container {
-      transform: translateY(0) scale(1);
-    }
-
-    .modal-header {
-      padding: 1.25rem 2rem;
-      background: #f8fafc;
-      border-bottom: 1px solid #e2e8f0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 10;
-    }
-
-    .modal-title {
-      font-size: 1.4rem;
-      font-weight: 800;
-      color: #1e293b;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .modal-title svg {
-      color: var(--primary);
-    }
-
-    .close-modal {
-      background: #f1f5f9;
-      border: none;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      cursor: pointer;
-      color: #64748b;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .close-modal:hover {
-      background: #e2e8f0;
-      color: #0f172a;
-      transform: rotate(90deg);
-    }
-
-    .modal-iframe-container {
-      flex-grow: 1;
-      position: relative;
-      background: #fff;
-    }
-
-    .modal-iframe {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-
-    /* Loading state for iframe */
-    .iframe-loader {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 1rem;
-      color: #64748b;
-    }
-
-    .loader-spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid #f1f5f9;
-      border-top: 4px solid var(--primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      0% {
-        transform: rotate(0deg);
-      }
-
-      100% {
-        transform: rotate(360deg);
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="index.css">
+</head>
 </head>
 
 <body>
@@ -961,8 +79,12 @@
     <div class="container">
       <div class="logo">V-Shift</div>
       <ul>
+        <li><a href="news.html">お知らせ</a></li>
         <li><a href="#install"
             onclick="gtag('event', 'click', {'event_category': 'navigation', 'event_label': 'nav_install'});">ダウンロード</a>
+        </li>
+        <li><a href="#pricing"
+            onclick="gtag('event', 'click', {'event_category': 'navigation', 'event_label': 'nav_pricing'});">有料化の予告</a>
         </li>
         <li><a href="#features"
             onclick="gtag('event', 'click', {'event_category': 'navigation', 'event_label': 'nav_features'});">機能</a>
@@ -970,12 +92,28 @@
         <li><a href="#specs"
             onclick="gtag('event', 'click', {'event_category': 'navigation', 'event_label': 'nav_specs'});">動作環境</a>
         </li>
-        <li><a href="javascript:void(0)"
-            onclick="gtag('event', 'click', {'event_category': 'navigation', 'event_label': 'nav_manual'}); openManual()">使い方</a>
+        <li><a href="#guide"
+            onclick="gtag('event', 'click', {'event_category': 'navigation', 'event_label': 'nav_manual'});">使い方</a>
         </li>
       </ul>
     </div>
   </nav>
+
+  <!-- Latest News Strip -->
+  <div class="latest-news-strip">
+    <div class="container news-container">
+      <span class="news-badge">NEW</span>
+      <div id="latest-news-content" class="news-content-scroll">
+        お知らせを読み込み中...
+      </div>
+      <a href="news.html" class="all-news-link">
+        一覧を見る
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+      </a>
+    </div>
+  </div>
 
   <!-- Hero Section -->
   <section class="hero">
@@ -1040,6 +178,187 @@
           <h4 style="color: var(--warning); margin-bottom: 0.5rem; font-size: 1.1rem;">社内PCでも安心の「インストール不要」</h4>
           <h3 style="font-size: 1.5rem; margin-bottom: 1rem;">ダウンロードしてすぐ試せる</h3>
           <p>面倒なシステム設定や管理者権限は不要。ファイルを解凍するだけで、お使いのPCですぐに使い始められます。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing / Monetization Notice -->
+  <section id="pricing">
+    <div class="container">
+      <div style="text-align: center; margin-bottom: 4rem;">
+        <span class="monetization-notice-badge">Coming Soon...</span>
+        <h2 class="section-title">将来的な有料化のお知らせ</h2>
+        <p class="section-subtitle">
+          V-Shiftは、より安定したクラウド共有サービスの維持と、</br>今後のさらなる機能アップのため、将来的に月額制（サブスクリプション）への移行を予定しています。
+          <br><small>※時期は未定です。現在はすべての機能を無料でご利用いただけます。</br>また、プランの内容（クレジット量や金額）は、正式版のリリース時に変更される可能性があります。</small>
+        </p>
+      </div>
+
+      <div class="pricing-grid">
+        <!-- Standard Plan -->
+        <div class="pricing-card">
+          <h3>スタンダード</h3>
+          <p style="color: var(--text-accent);">小規模施設向け</p>
+          <div class="price">¥4,000<span>/月</span></div>
+          <ul class="pricing-features">
+            <li>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+              </svg>
+              一緒に使えるPC 3台まで
+            </li>
+            <li>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+              </svg>
+              <strong>800 書き換え回数</strong> /月
+            </li>
+            <li>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+              </svg>
+              ローカル保存・編集（制限なし）
+            </li>
+          </ul>
+        </div>
+
+        <!-- Pro Plan -->
+        <div class="pricing-card popular">
+          <h3>プロ</h3>
+          <p style="color: var(--text-accent);">中規模施設に最適</p>
+          <div class="price">¥6,500<span>/月</span></div>
+          <ul class="pricing-features">
+            <li>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+              </svg>
+              一緒に使えるPC 7台まで
+            </li>
+            <li>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+              </svg>
+              <strong>2,000 書き換え回数</strong> /月
+            </li>
+            <li>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+              </svg>
+              優先サポート対応
+            </li>
+          </ul>
+        </div>
+
+        <!-- Ultra Plan -->
+        <div class="pricing-card">
+          <h3>ウルトラ</h3>
+          <p style="color: var(--text-accent);">大規模・高頻度更新向け</p>
+          <div class="price">¥9,000<span>/月</span></div>
+          <ul class="pricing-features">
+            <li>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+              </svg>
+              一緒に使えるPC 制限なし
+            </li>
+            <li>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+              </svg>
+              <strong>10,000 書き換え回数</strong> /月
+            </li>
+            <li>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+              </svg>
+              全機能フルアクセス
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <p style="text-align: center; font-size: 0.85rem; color: var(--text-secondary); margin-top: 2rem; opacity: 0.8;">
+        ※上記プランの内容（クレジット量や金額）は検討中の案であり、予告なく変更される場合があります。
+      </p>
+
+      <!-- Credit System Explanation -->
+      <div class="credit-info-box">
+        <h3 style="font-size: 1.8rem; margin-bottom: 1rem; color: var(--text-primary); text-align: center;">
+          独自仕様：書き換え回数（クレジット）制とは？</h3>
+        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 3rem;">
+          皆が快適にデータを保存・共有できるよう、作業の量に応じた「書き換え回数」をポイントのように消費する仕組みです。
+        </p>
+
+        <div class="credit-grid">
+          <div class="credit-item">
+            <div class="credit-item-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+              </svg>
+            </div>
+            <div class="credit-item-content">
+              <h4>変更を確定した瞬間に消費</h4>
+              <p>シフトに何らかの変更を加え、その変更を「確定」させた瞬間に1クレジットを消費します。</p>
+            </div>
+          </div>
+
+          <div class="credit-item">
+            <div class="credit-item-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+                <path d="M22 4L12 14.01l-3-3" />
+              </svg>
+            </div>
+            <div class="credit-item-content">
+              <h4>「見るだけ」ならずっと無料</h4>
+              <p>他の人が作ったシフトを確認したり、アプリを開いて最新の状態を見るだけなら、クレジットは一切減りません。</p>
+            </div>
+          </div>
+
+          <div class="credit-item">
+            <div class="credit-item-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+              </svg>
+            </div>
+            <div class="credit-item-content">
+              <h4>共有しない作業も無料</h4>
+              <p>もしクレジットを使い切っても、他のPCとの共有やバックアップが止まるだけです。自分のPC内でシフトを作って印刷する使い方は、制限なく続けられます。</p>
+            </div>
+          </div>
+
+          <div class="credit-item">
+            <div class="credit-item-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            </div>
+            <div class="credit-item-content">
+              <h4>残り具合もすぐわかる</h4>
+              <p>アプリ内で残クレジット量をいつでも確認できます。残量が 80%・95% に達した際には通知でお知らせし、不意の更新停止を防ぎます。</p>
+            </div>
+          </div>
+
+          <div class="credit-item">
+            <div class="credit-item-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </div>
+            <div class="credit-item-content">
+              <h4>初回 800回分をプレゼント</h4>
+              <p>有料化が始まった際、すべてのユーザーに 800回クレジットを付与します。まずは使ってみてください。</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="note" style="margin-top: 3rem; text-align: center;">
+          <p style="font-size: 0.9rem;">
+            <strong>【フェアユース条項について】</strong>
+            通常利用の範囲内であれば制限なくご利用いただけます。極端に更新（共有）頻度が頻繁な場合は一時的に制限されることがありますが、プランを上げることで緩和されます。
+          </p>
         </div>
       </div>
     </div>
@@ -1633,6 +952,8 @@
       }, 400);
     }
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="news.js"></script>
 </body>
 
 </html>
