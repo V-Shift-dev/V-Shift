@@ -29,8 +29,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.log(`Fetching: ${fetchPath}`);
 
         const res = await fetch(`${fetchPath}?t=${Date.now()}`);
+        const absoluteUrl = new URL(res.url, window.location.origin).href;
         if (!res.ok) {
-          const errorMsg = `${fetchPath} の取得に失敗しました (Status: ${res.status})`;
+          const errorMsg = `${fetchPath} の取得に失敗しました (Status: ${res.status})<br><small>${absoluteUrl}</small>`;
           console.warn(errorMsg);
           errorDetails.push(errorMsg);
           continue;
