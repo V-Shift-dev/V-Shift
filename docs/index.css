@@ -1212,3 +1212,28 @@ footer {
   margin-bottom: 0.5rem;
   font-size: 1.1rem;
 }
+
+/* Debug / Error Display */
+.debug-error-box {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+  text-align: left;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.debug-error-box p {
+  color: #f87171 !important;
+  font-size: 0.9rem !important;
+  margin-bottom: 0.5rem;
+}
+
+.debug-error-box ul {
+  list-style: disc;
+  margin-left: 1.5rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
