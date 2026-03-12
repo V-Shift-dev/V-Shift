@@ -123,6 +123,8 @@ nav ul {
   display: flex;
   gap: 2rem;
   list-style: none;
+  flex-direction: row !important;
+  flex-wrap: nowrap;
 }
 
 nav a {
@@ -1149,6 +1151,12 @@ footer {
   margin-bottom: 0.75rem;
 }
 
+.cat-update {
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--primary);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
 .news-item p {
   color: var(--text-secondary);
   font-size: 1rem;
@@ -1188,6 +1196,7 @@ footer {
   border-radius: 4px;
   font-family: monospace;
 }
+
 .news-md-content blockquote {
   background: rgba(99, 102, 241, 0.1);
   border-left: 4px solid var(--primary);
@@ -1203,4 +1212,3 @@ footer {
   margin-bottom: 0.5rem;
   font-size: 1.1rem;
 }
-
