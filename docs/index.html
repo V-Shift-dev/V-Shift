@@ -28,8 +28,8 @@
   <meta property="og:title" content="V-Shift｜【無料】介護シフト自動作成ソフト（インストール不要・Excel出力対応）">
   <meta property="og:description" content="介護施設のシフト作成を自動化。インストール不要で今すぐ試せるWindows専用フリーソフト。エクセル出力対応で事務負担をゼロに。">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://miki-potato.github.io/Vshift-Product/">
-  <meta property="og:image" content="https://miki-potato.github.io/Vshift-Product/og-image.jpg">
+  <meta property="og:url" content="https://v-shift-dev.github.io/V-Shift/">
+  <meta property="og:image" content="https://v-shift-dev.github.io/V-Shift/og-image.jpg">
   <meta property="og:site_name" content="V-Shift">
   <meta property="og:locale" content="ja_JP">
 
@@ -37,10 +37,10 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="V-Shift｜【無料】介護シフト自動作成ソフト">
   <meta name="twitter:description" content="インストール不要・Excel出力対応。介護施設のシフト作成を自動化するWindows専用フリーソフト。">
-  <meta name="twitter:image" content="https://miki-potato.github.io/Vshift-Product/og-image.jpg">
+  <meta name="twitter:image" content="https://v-shift-dev.github.io/V-Shift/og-image.jpg">
 
   <!-- Canonical URL -->
-  <link rel="canonical" href="https://miki-potato.github.io/Vshift-Product/">
+  <link rel="canonical" href="https://v-shift-dev.github.io/V-Shift/">
 
   <!-- Structured Data (JSON-LD) -->
   <script type="application/ld+json">
@@ -49,8 +49,8 @@
     "@type": "SoftwareApplication",
     "name": "V-Shift",
     "description": "小・中規模介護施設向けのシフト管理アプリケーション。シフト作成・勤怠管理を効率化。",
-    "url": "https://miki-potato.github.io/Vshift-Product/",
-    "downloadUrl": "https://miki-potato.github.io/Vshift-Product/V-Shift-Installer.zip",
+    "url": "https://v-shift-dev.github.io/V-Shift/",
+    "downloadUrl": "https://v-shift-dev.github.io/V-Shift/V-Shift-Installer.zip",
     "operatingSystem": "Windows 10, Windows 11",
     "applicationCategory": "BusinessApplication",
     "offers": {
@@ -65,11 +65,18 @@
     "softwareVersion": "1.0",
     "releaseNotes": "初回リリース版",
     "requirements": "Windows 10 64bit以降, .NET Framework 4.8, Excel 2016以降",
-    "screenshot": "https://miki-potato.github.io/Vshift-Product/screenshot.jpg"
+    "screenshot": "https://v-shift-dev.github.io/V-Shift/screenshot.jpg"
   }
   </script>
 
   <link rel="stylesheet" href="index.css">
+  <style>
+    .disabled-dl {
+      opacity: 0.5;
+      cursor: not-allowed !important;
+      pointer-events: none;
+    }
+  </style>
 </head>
 </head>
 
@@ -373,9 +380,15 @@
       <!-- Download Area -->
       <div class="download-section" style="padding: 3rem;">
         <div style="text-align: center; margin-bottom: 2rem;">
-          <p style="color: var(--text-secondary); margin-bottom: 1rem;">※ダウンロードすることで<a href="javascript:void(0)"
-              onclick="toggleTerms()" style="color: var(--primary); text-decoration: underline;">利用規約</a>に同意したものとみなされます。
+          <p style="color: var(--text-secondary); margin-bottom: 1rem;">利用規約をご確認いただき、同意の上でダウンロードしてください。<br><a
+              href="javascript:void(0)" onclick="toggleTerms()"
+              style="color: var(--primary); text-decoration: underline;">利用規約を読む</a>
           </p>
+          <div style="margin-top: 1.5rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            <input type="checkbox" id="terms-agree-checkbox" style="width: 1.2rem; height: 1.2rem; cursor: pointer;">
+            <label for="terms-agree-checkbox"
+              style="cursor: pointer; font-weight: bold; color: var(--text-primary);">利用規約に同意する</label>
+          </div>
         </div>
 
         <div id="terms-content" class="terms-content" style="display: none;">
@@ -429,12 +442,12 @@
               <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
               </svg>
-              V-Shift 安定版
+              V-Shift
             </h3>
-            <p>通常のV-Shiftアプリケーションです。日常的な業務には、この安定版（推奨）のご使用をお勧めします。</p>
-            <a href="V-Shift-Installer.zip" id="main-download-btn" class="download-button"
-              download="V-Shift-Installer.zip"
-              onclick="gtag('event', 'download', {'event_category': 'download', 'event_label': 'app_installer'});">
+            <p>V-Shiftアプリケーションです。ダウンロードしてすぐにシフト管理を始められます。</p>
+            <a href="V-Shift-Installer.zip" id="main-download-btn"
+              class="download-button requires-terms-agree disabled-dl" download="V-Shift-Installer.zip"
+              onclick="if(this.classList.contains('disabled-dl')) { event.preventDefault(); return false; } gtag('event', 'download', {'event_category': 'download', 'event_label': 'app_installer'});">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
               </svg>
@@ -443,34 +456,6 @@
             <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.7;">バージョン 1.1.8 • Windows 10/11 対応 • 無料</p>
           </div>
 
-          <div class="download-item beta">
-            <h3>
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="#f59e0b">
-                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
-              </svg>
-              V-Shift ベータ版
-            </h3>
-            <p>最新の機能や修正をいち早くお試しいただけます。実験的なアップデートが含まれます。</p>
-            <div class="warning-box">
-              <strong>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2L1 21h22L12 2zm1 14h-2v-2h2v2zm0-4h-2V8h2v4z" />
-                </svg>
-                ベータ版のご利用について
-              </strong>
-              最新の機能をいち早く体験いただけます。開発途上のバージョンのため、予期せぬ動作が含まれる場合があります。フィードバックへのご協力をお願いいたします。
-            </div>
-            <a href="V-ShiftBeta-Installer.zip" id="beta-download-btn" class="download-button"
-              style="background: linear-gradient(135deg, var(--warning), #d97706); box-shadow: 0 10px 30px rgba(245, 158, 11, 0.2);"
-              download="V-ShiftBeta-Installer.zip"
-              onclick="gtag('event', 'download', {'event_category': 'download', 'event_label': 'beta_installer'});">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
-              </svg>
-              ベータ版をダウンロード
-            </a>
-            <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.7;">最新プレリリース • Windows 10/11 対応</p>
-          </div>
 
           <div class="download-item">
             <h3>
@@ -480,9 +465,9 @@
               エクセルテンプレート
             </h3>
             <p>V-Shiftにインポート可能なエクセルシフト表の入力形式テンプレートです。既存のエクセルファイルがある場合に便利です。</p>
-            <a href="エクセルシフト表＿入力形式.xlsx" id="template-download-btn" class="download-button"
-              download="エクセルシフト表_入力形式.xlsx"
-              onclick="gtag('event', 'download', {'event_category': 'download', 'event_label': 'excel_template'});">
+            <a href="エクセルシフト表＿入力形式.xlsx" id="template-download-btn"
+              class="download-button requires-terms-agree disabled-dl" download="エクセルシフト表_入力形式.xlsx"
+              onclick="if(this.classList.contains('disabled-dl')) { event.preventDefault(); return false; } gtag('event', 'download', {'event_category': 'download', 'event_label': 'excel_template'});">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
               </svg>
@@ -879,11 +864,21 @@
 
 
 
-    // Check terms agreement
-    function checkTermsAgreement(event) {
-      // Logic removed as checkbox is gone, but keeping function name if called elsewhere
-      return true;
+    // Check terms agreement logic
+    document.addEventListener('DOMContentLoaded', function () {
+      const checkbox = document.getElementById('terms-agree-checkbox');
+      const downloadBtns = document.querySelectorAll('.requires-terms-agree');
+
+      if (checkbox) {
+        checkbox.addEventListener('change', function () {
+          if (this.checked) {
+            downloadBtns.forEach(btn => btn.classList.remove('disabled-dl'));
+          } else {
+            downloadBtns.forEach(btn => btn.classList.add('disabled-dl'));
     }
+        });
+      }
+    });
 
     // Smooth scroll
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
