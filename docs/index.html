@@ -138,8 +138,7 @@
   </section>
 
   <!-- Why Choose Section -->
-  <section id="why-choose"
-    style="background: rgba(15, 23, 42, 0.4); border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+  <section id="why-choose">
     <div class="container">
       <h2 class="section-title">「もう、シフト作成に時間を取られない。」</h2>
       <p class="section-subtitle">V-Shiftが現場で選ばれている3つの理由</p>
@@ -198,176 +197,85 @@
         <h2 class="section-title">将来的な有料化のお知らせ</h2>
         <p class="section-subtitle">
           V-Shiftは、より安定したクラウド共有サービスの維持と、</br>今後のさらなる機能アップのため、将来的に月額制（サブスクリプション）への移行を予定しています。
-          <br><small>※時期は未定です。現在はすべての機能を無料でご利用いただけます。</br>また、プランの内容（クレジット量や金額）は、正式版のリリース時に変更される可能性があります。</small>
+          <br><small>※時期は未定です。現在はすべての機能を無料でご利用いただけます。</br>また、プランの内容（通信量上限や金額）は、正式版のリリース時に変更される可能性があります。</small>
         </p>
       </div>
 
       <div class="pricing-grid">
-        <!-- Standard Plan -->
+        <!-- Lite Plan -->
         <div class="pricing-card">
-          <h3>スタンダード</h3>
-          <p style="color: var(--text-accent);">小規模施設向け</p>
-          <div class="price">¥4,000<span>/月</span></div>
+          <h3>ライト</h3>
+          <p style="color: var(--text-accent);">小規模施設・低頻度同期</p>
+          <div class="price">¥1,000<span>/月</span></div>
           <ul class="pricing-features">
             <li>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
               </svg>
-              一緒に使えるPC 3台まで
+              月間通信量上限 <strong>300 MB</strong>
             </li>
+          </ul>
+        </div>
+
+        <!-- Standard Plan -->
+        <div class="pricing-card popular">
+          <h3>スタンダード</h3>
+          <p style="color: var(--text-accent);">中規模施設・日常利用</p>
+          <div class="price">¥3,000<span>/月</span></div>
+          <ul class="pricing-features">
             <li>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
               </svg>
-              <strong>800 書き換え回数</strong> /月
-            </li>
-            <li>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-              </svg>
-              ローカル保存・編集（制限なし）
+              月間通信量上限 <strong>1 GB</strong>
             </li>
           </ul>
         </div>
 
         <!-- Pro Plan -->
-        <div class="pricing-card popular">
+        <div class="pricing-card">
           <h3>プロ</h3>
-          <p style="color: var(--text-accent);">中規模施設に最適</p>
-          <div class="price">¥6,500<span>/月</span></div>
+          <p style="color: var(--text-accent);">大規模施設・高頻度同期</p>
+          <div class="price">¥5,000<span>/月</span></div>
           <ul class="pricing-features">
             <li>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
               </svg>
-              一緒に使えるPC 7台まで
-            </li>
-            <li>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-              </svg>
-              <strong>2,000 書き換え回数</strong> /月
-            </li>
-            <li>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-              </svg>
-              優先サポート対応
+              月間通信量上限 <strong>1.5 GB</strong>
             </li>
           </ul>
         </div>
 
-        <!-- Ultra Plan -->
+        <!-- On Demand Plan -->
         <div class="pricing-card">
-          <h3>ウルトラ</h3>
-          <p style="color: var(--text-accent);">大規模・高頻度更新向け</p>
-          <div class="price">¥9,000<span>/月</span></div>
+          <h3>従量課金</h3>
+          <p style="color: var(--text-accent);">一時的な超過時・上限を気にしたくない方向け</p>
+          <div class="price">¥3<span>/MB</span></div>
           <ul class="pricing-features">
             <li>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
               </svg>
-              一緒に使えるPC 制限なし
-            </li>
-            <li>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-              </svg>
-              <strong>10,000 書き換え回数</strong> /月
-            </li>
-            <li>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-              </svg>
-              全機能フルアクセス
+              月間通信量上限 <strong>なし</strong>
             </li>
           </ul>
         </div>
+      </div>
+
+      <div class="note" style="margin-top: 2.5rem;">
+        <p style="font-size: 0.95rem; color: var(--text-secondary); line-height: 1.8;">
+          <strong>共通事項</strong><br>
+          ・課金単位は 1施設 = 1アカウントです。<br>
+          ・PC台数制限は設けません（同一アカウントの全端末の通信量を合算します）。<br>
+          ・通信量は アップロード/ダウンロードの両方をカウントします。
+        </p>
       </div>
 
       <p style="text-align: center; font-size: 0.85rem; color: var(--text-secondary); margin-top: 2rem; opacity: 0.8;">
-        ※上記プランの内容（クレジット量や金額）は検討中の案であり、予告なく変更される場合があります。
+        ※上記は予告の内容であり、予告なく変更される場合があります。
       </p>
 
-      <!-- Credit System Explanation -->
-      <div class="credit-info-box">
-        <h3 style="font-size: 1.8rem; margin-bottom: 1rem; color: var(--text-primary); text-align: center;">
-          独自仕様：書き換え回数（クレジット）制とは？</h3>
-        <p style="text-align: center; color: var(--text-secondary); margin-bottom: 3rem;">
-          皆が快適にデータを保存・共有できるよう、作業の量に応じた「書き換え回数」をポイントのように消費する仕組みです。
-        </p>
-
-        <div class="credit-grid">
-          <div class="credit-item">
-            <div class="credit-item-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
-              </svg>
-            </div>
-            <div class="credit-item-content">
-              <h4>変更を確定した瞬間に消費</h4>
-              <p>シフトに何らかの変更を加え、その変更を「確定」させた瞬間に1クレジットを消費します。</p>
-            </div>
-          </div>
-
-          <div class="credit-item">
-            <div class="credit-item-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
-                <path d="M22 4L12 14.01l-3-3" />
-              </svg>
-            </div>
-            <div class="credit-item-content">
-              <h4>「見るだけ」ならずっと無料</h4>
-              <p>他の人が作ったシフトを確認したり、アプリを開いて最新の状態を見るだけなら、クレジットは一切減りません。</p>
-            </div>
-          </div>
-
-          <div class="credit-item">
-            <div class="credit-item-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
-              </svg>
-            </div>
-            <div class="credit-item-content">
-              <h4>共有しない作業も無料</h4>
-              <p>もしクレジットを使い切っても、他のPCとの共有やバックアップが止まるだけです。自分のPC内でシフトを作って印刷する使い方は、制限なく続けられます。</p>
-            </div>
-          </div>
-
-          <div class="credit-item">
-            <div class="credit-item-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-            </div>
-            <div class="credit-item-content">
-              <h4>残り具合もすぐわかる</h4>
-              <p>アプリ内で残クレジット量をいつでも確認できます。残量が 80%・95% に達した際には通知でお知らせし、不意の更新停止を防ぎます。</p>
-            </div>
-          </div>
-
-          <div class="credit-item">
-            <div class="credit-item-icon">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-            </div>
-            <div class="credit-item-content">
-              <h4>初回 800回分をプレゼント</h4>
-              <p>有料化が始まった際、すべてのユーザーに 800回クレジットを付与します。まずは使ってみてください。</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="note" style="margin-top: 3rem; text-align: center;">
-          <p style="font-size: 0.9rem;">
-            <strong>【フェアユース条項について】</strong>
-            通常利用の範囲内であれば制限なくご利用いただけます。極端に更新（共有）頻度が頻繁な場合は一時的に制限されることがありますが、プランを上げることで緩和されます。
-          </p>
-        </div>
-      </div>
     </div>
   </section>
 
@@ -674,7 +582,7 @@
   </section>
 
   <!-- Excel Integration & Comparison -->
-  <section id="excel-integration" style="background: rgba(15, 23, 42, 0.4);">
+  <section id="excel-integration">
     <div class="container">
       <h2 class="section-title">エクセル管理の「限界」を突破する</h2>
       <p class="section-subtitle">使い慣れたエクセルはそのままに、作成業務だけを「自動化」します。</p>
@@ -744,74 +652,6 @@
     </div>
   </section>
 
-
-
-  <!-- Specs Section -->
-  <section id="specs">
-    <div class="container">
-      <h2 class="section-title">動作環境</h2>
-      <p class="section-subtitle">快適にご利用いただくための推奨スペック</p>
-
-      <div class="spec-card">
-        <table class="spec-table">
-          <thead>
-            <tr>
-              <th>項目</th>
-              <th>最低環境</th>
-              <th>推奨環境</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="spec-item">CPU</td>
-              <td>Intel Core i3-10100U<br>AMD Ryzen 3 3200U 以上</td>
-              <td>Intel Core i5-1135G7<br>AMD Ryzen 5 4500U 以上</td>
-            </tr>
-            <tr>
-              <td class="spec-item">メモリ</td>
-              <td>8GB</td>
-              <td>16GB</td>
-            </tr>
-            <tr>
-              <td class="spec-item">ストレージ</td>
-              <td>SSD 128GB（空き20GB）</td>
-              <td>SSD 256GB（空き50GB）</td>
-            </tr>
-            <tr>
-              <td class="spec-item">GPU</td>
-              <td>Intel UHD/AMD Vega</td>
-              <td>Intel Iris Xe/AMD Vega 8 以上</td>
-            </tr>
-            <tr>
-              <td class="spec-item">ディスプレイ</td>
-              <td>1366×768</td>
-              <td>1920×1080（FHD）</td>
-            </tr>
-            <tr>
-              <td class="spec-item">OS</td>
-              <td>Windows 10 64bit（21H2以降）</td>
-              <td>Windows 11 64bit</td>
-            </tr>
-            <tr>
-              <td class="spec-item">.NET</td>
-              <td>.NET Framework 4.8</td>
-              <td>.NET Framework 4.8</td>
-            </tr>
-            <tr>
-              <td class="spec-item">Excel</td>
-              <td>2016以降</td>
-              <td>2019/365</td>
-            </tr>
-            <tr>
-              <td class="spec-item">ネットワーク</td>
-              <td>有線/無線LAN</td>
-              <td>有線LAN推奨</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
 
   <!-- Footer -->
   <footer>
