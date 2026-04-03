@@ -13,8 +13,23 @@
       <div class="logo"><a href="index.html">V-Shift</a></div>
       <ul>
         <li><a href="index.html">トップ</a></li>
-        <li><a href="mypage.html">マイページ</a></li>
+        <li id="nav-mypage-item"><a href="mypage.html">マイページ</a></li>
       </ul>
+      <div class="nav-right">
+        <div id="nav-auth-buttons" class="nav-auth-buttons">
+          <a class="nav-btn" href="mypage.html#login">ログイン</a>
+          <a class="nav-btn nav-btn-primary" href="mypage.html#signup">サインアップ</a>
+        </div>
+        <div id="nav-account" class="nav-account" style="display:none;">
+          <button id="nav-account-btn" class="nav-account-btn" type="button">
+            <span id="nav-account-name">---</span>
+            <span class="nav-caret">▾</span>
+          </button>
+          <div id="nav-account-menu" class="nav-account-menu" style="display:none;">
+            <button id="nav-logout-btn" class="nav-menu-item" type="button">ログアウト</button>
+          </div>
+        </div>
+      </div>
     </div>
   </nav>
 
@@ -50,6 +65,8 @@
     <div id="mypage-section" class="mypage-section" style="display:none;">
       <h1>マイページ</h1>
 
+      <div id="page-error" class="error-msg" style="display:none;"></div>
+
       <div id="payment-success-msg" class="success-msg" style="display:none;">
         ご契約ありがとうございます。プランが更新されました。
       </div>
@@ -66,6 +83,7 @@
         </div>
         <p class="renew-hint">※契約更新日から30日でリセットされます</p>
         <p id="renewed-at"><strong>契約更新日:</strong> <span id="renewed-at-value">---</span></p>
+        <div id="ondemand-status" class="ondemand-status" style="display:none;"></div>
         <p class="renew-hint" style="margin-top: 0.75rem; opacity: 0.85;">
           ※解約（サブスク停止）はこのページからお手続きできます。解約手続き後も<strong>契約期間満了（次回更新日）までは</strong>利用できます。<br>
           ※契約期間満了（次回更新日）以降は利用できなくなり、Firebase 上の関連データはそこから <strong>30 日間</strong>保持されたのち削除されます（ローカルPCのデータは残ります）。<br>
@@ -95,6 +113,11 @@
             <p class="plan-price">¥5,000/月</p>
             <button class="plan-btn" data-price="price_1TDKJFRouxrLYVHVbT3Qah8C">選択</button>
           </div>
+          <div class="plan-card plan-card-ondemand">
+            <h3>従量課金</h3>
+            <p class="plan-price">¥3 / MB</p>
+            <button class="plan-btn" data-price="price_1TI2W1RouxrLYVHVTy7gDiH8">選択</button>
+          </div>
         </div>
       </section>
 
@@ -104,17 +127,27 @@
         <button id="delete-account-btn" class="btn-danger">アカウントを削除</button>
       </section>
 
-      <section id="delete-confirm" class="delete-confirm" style="display:none;">
-        <h3>アカウント削除の確認</h3>
-        <p>削除すると、すべてのデータが消去され、元に戻せません。</p>
-        <p>パスワードを入力し、同意にチェックを入れてください。</p>
-        <input type="password" id="delete-password" placeholder="パスワード">
-        <label><input type="checkbox" id="delete-agree"> すべてのデータが消去されることに同意する</label>
-        <div>
-          <button id="delete-execute" class="btn-danger" disabled>削除する</button>
-          <button id="delete-cancel" class="btn-secondary">キャンセル</button>
+      <div id="delete-modal-backdrop" class="modal-backdrop" style="display:none;"></div>
+      <div id="delete-modal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+        <div class="modal-card">
+          <h3 id="delete-modal-title">アカウント削除の確認</h3>
+          <div id="delete-modal-body">
+            <p>削除すると、すべてのデータが消去され、元に戻せません。</p>
+            <p>パスワードを入力し、同意にチェックを入れてください。</p>
+            <input type="password" id="delete-password" placeholder="パスワード" autocomplete="current-password">
+            <label class="checkbox-line"><input type="checkbox" id="delete-agree"> すべてのデータが消去されることに同意する</label>
+            <p id="delete-error" class="auth-error" style="margin-top:0.5rem;"></p>
+            <div class="modal-actions">
+              <button id="delete-execute" class="btn-danger" disabled>削除する</button>
+              <button id="delete-cancel" class="btn-secondary">キャンセル</button>
+            </div>
+          </div>
+          <div id="delete-progress" class="modal-progress" style="display:none;">
+            <div class="spinner" aria-hidden="true"></div>
+            <div>削除しています…（数秒かかる場合があります）</div>
+          </div>
         </div>
-      </section>
+      </div>
     </div>
   </main>
 

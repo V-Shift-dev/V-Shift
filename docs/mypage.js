@@ -10,6 +10,7 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  updateProfile,
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
@@ -48,6 +49,27 @@ const PLAN_NAMES = {
   ondemand: "従量課金",
 };
 
+/** summary: 画面上部のエラー表示を更新する */
+function setPageError(message) {
+  const el = document.getElementById("page-error");
+  if (!el) return;
+  if (!message) {
+    el.style.display = "none";
+    el.textContent = "";
+    return;
+  }
+  el.style.display = "block";
+  el.textContent = message;
+}
+
+/** summary: Functions/RTDB 由来エラーを読みやすく整形する */
+function formatFirebaseError(err) {
+  if (!err) return "不明なエラーが発生しました";
+  const code = err.code ? String(err.code) : "";
+  const message = err.message ? String(err.message) : "不明なエラーが発生しました";
+  return code ? `${message}\n(${code})` : message;
+}
+
 function formatBytes(bytes) {
   if (bytes >= 1024 * 1024 * 1024) {
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
@@ -60,6 +82,29 @@ function showSection(sectionId) {
     sectionId === "auth" ? "block" : "none";
   document.getElementById("mypage-section").style.display =
     sectionId === "mypage" ? "block" : "none";
+}
+
+/** summary: ナビゲーション（ログイン状態）を切り替える */
+function renderNav(user) {
+  const authButtons = document.getElementById("nav-auth-buttons");
+  const account = document.getElementById("nav-account");
+  const nameEl = document.getElementById("nav-account-name");
+  const mypageItem = document.getElementById("nav-mypage-item");
+  const accountMenu = document.getElementById("nav-account-menu");
+
+  if (!authButtons || !account || !nameEl || !mypageItem) return;
+
+  if (user) {
+    authButtons.style.display = "none";
+    account.style.display = "block";
+    mypageItem.style.display = "";
+    nameEl.textContent = user.displayName || user.email || "---";
+  } else {
+    authButtons.style.display = "flex";
+    account.style.display = "none";
+    mypageItem.style.display = "none";
+    if (accountMenu) accountMenu.style.display = "none";
+  }
 }
 
 function showPaymentMessages() {
@@ -77,6 +122,28 @@ function showPaymentMessages() {
   }
 }
 
+/** summary: トライアル/未契約時の使用量を RTDB から可能な範囲で取得する */
+async function loadTrialUsedBytes(uid) {
+  const candidates = [
+    `usage/${uid}/usedBytes`,
+    `users/${uid}/Usage/usedBytes`,
+    `users/${uid}/License/usedBytes`,
+  ];
+
+  for (const path of candidates) {
+    try {
+      const snap = await get(ref(db, path));
+      const val = snap.val();
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      if (typeof val === "string" && val && !Number.isNaN(Number(val))) return Number(val);
+    } catch {
+      // ignore and try next
+    }
+  }
+  return 0;
+}
+
+/** summary: 契約状況UIをレンダリングする */
 function renderLicense(license) {
   const plan = license?.plan || "trial";
   const limitBytes = license?.limitBytes ?? 50 * 1024 * 1024;
@@ -94,20 +161,85 @@ function renderLicense(license) {
   else if (pct >= 85) bar.classList.add("warn");
 
   const renewedAt = license?.renewedAt;
-  document.getElementById("renewed-at-value").textContent = renewedAt
-    ? new Date(renewedAt).toLocaleDateString("ja-JP")
-    : "---";
+  const renewedAtValueEl = document.getElementById("renewed-at-value");
+  const renewedAtRow = document.getElementById("renewed-at");
+  if (plan === "trial") {
+    renewedAtValueEl.textContent = "";
+    if (renewedAtRow) renewedAtRow.style.display = "none";
+  } else {
+    if (renewedAtRow) renewedAtRow.style.display = "";
+    renewedAtValueEl.textContent = renewedAt
+      ? new Date(renewedAt).toLocaleDateString("ja-JP")
+      : "---";
+  }
+
+  const cancelBtn = document.getElementById("cancel-subscription-btn");
+  if (cancelBtn) cancelBtn.style.display = plan === "trial" ? "none" : "";
+
+  const ondemandStatus = document.getElementById("ondemand-status");
+  if (ondemandStatus) {
+    const until = license?.ondemandActiveUntil;
+    if (until) {
+      const d = new Date(until);
+      const active = Number.isFinite(d.getTime()) && d.getTime() > Date.now();
+      ondemandStatus.style.display = "block";
+      ondemandStatus.textContent = active
+        ? `従量課金: 有効（${d.toLocaleDateString("ja-JP")}まで）`
+        : "従量課金: 期限切れ";
+    } else {
+      ondemandStatus.style.display = "block";
+      ondemandStatus.textContent = "従量課金: 無効";
+    }
+  }
 }
 
 onAuthStateChanged(auth, (user) => {
+  setPageError("");
+  renderNav(user);
   if (user) {
     showSection("mypage");
     showPaymentMessages();
 
     const licenseRef = ref(db, `licenses/${user.uid}`);
-    onValue(licenseRef, (snap) => renderLicense(snap.val()));
+    onValue(
+      licenseRef,
+      async (snap) => {
+        const license = snap.val();
+        if (license) {
+          renderLicense(license);
+          return;
+        }
+
+        const usedBytes = await loadTrialUsedBytes(user.uid);
+        renderLicense({
+          plan: "trial",
+          limitBytes: 50 * 1024 * 1024,
+          usedBytes,
+          renewedAt: null,
+        });
+      },
+      async (err) => {
+        const usedBytes = await loadTrialUsedBytes(user.uid);
+        renderLicense({
+          plan: "trial",
+          limitBytes: 50 * 1024 * 1024,
+          usedBytes,
+          renewedAt: null,
+        });
+        setPageError(`契約情報の読み取りに失敗しました。\n${formatFirebaseError(err)}`);
+      }
+    );
   } else {
     showSection("auth");
+    closeDeleteModal();
+    const hash = (location.hash || "").toLowerCase();
+    if (hash === "#signup") {
+      document.querySelector(".auth-card").style.display = "none";
+      document.getElementById("signup-card").style.display = "block";
+    } else {
+      document.getElementById("signup-card").style.display = "none";
+      document.querySelector(".auth-card").style.display = "block";
+    }
   }
 });
 
@@ -139,6 +271,9 @@ document.getElementById("signup-form")?.addEventListener("submit", async (e) => 
   btn.disabled = true;
   try {
     await createUserWithEmailAndPassword(auth, email, password);
+    if (auth.currentUser && displayName) {
+      await updateProfile(auth.currentUser, { displayName });
+    }
   } catch (err) {
     errEl.textContent = err.message || "アカウント作成に失敗しました";
   } finally {
@@ -169,10 +304,10 @@ document.querySelectorAll(".plan-btn").forEach((btn) => {
       if (data?.url) {
         location.href = data.url;
       } else {
-        alert("決済ページの取得に失敗しました");
+        setPageError("決済ページの取得に失敗しました。");
       }
     } catch (err) {
-      alert(err.message || "エラーが発生しました");
+      setPageError(`プラン選択に失敗しました。\n${formatFirebaseError(err)}`);
     } finally {
       btn.disabled = false;
     }
@@ -183,6 +318,24 @@ document.getElementById("logout-btn")?.addEventListener("click", async () => {
   await signOut(auth);
 });
 
+document.getElementById("nav-logout-btn")?.addEventListener("click", async () => {
+  await signOut(auth);
+});
+
+document.getElementById("nav-account-btn")?.addEventListener("click", () => {
+  const menu = document.getElementById("nav-account-menu");
+  if (!menu) return;
+  menu.style.display = menu.style.display === "none" ? "block" : "none";
+});
+
+document.addEventListener("click", (e) => {
+  const btn = document.getElementById("nav-account-btn");
+  const menu = document.getElementById("nav-account-menu");
+  if (!btn || !menu) return;
+  if (btn.contains(e.target) || menu.contains(e.target)) return;
+  menu.style.display = "none";
+});
+
 /**
  * 解約（サブスクリプション停止）のために Stripe Customer Portal を開く
  */
@@ -191,7 +344,7 @@ async function openCancelPortal(buttonEl) {
   try {
     const user = auth.currentUser;
     if (!user) {
-      alert("ログインが必要です");
+      setPageError("ログインが必要です。");
       return;
     }
 
@@ -200,10 +353,10 @@ async function openCancelPortal(buttonEl) {
     if (data?.url) {
       location.href = data.url;
     } else {
-      alert("解約ページの取得に失敗しました");
+      setPageError("解約ページの取得に失敗しました。");
     }
   } catch (err) {
-    alert(err.message || "エラーが発生しました");
+    setPageError(`解約手続きの開始に失敗しました。\n${formatFirebaseError(err)}`);
   } finally {
     buttonEl.disabled = false;
   }
@@ -215,12 +368,58 @@ document.getElementById("cancel-subscription-btn")?.addEventListener("click", as
   await openCancelPortal(btn);
 });
 
+/** summary: アカウント削除モーダルを初期化して開く */
+function openDeleteModal() {
+  const backdrop = document.getElementById("delete-modal-backdrop");
+  const modal = document.getElementById("delete-modal");
+  const body = document.getElementById("delete-modal-body");
+  const progress = document.getElementById("delete-progress");
+  const pwd = document.getElementById("delete-password");
+  const agree = document.getElementById("delete-agree");
+  const exec = document.getElementById("delete-execute");
+  const err = document.getElementById("delete-error");
+
+  if (pwd) pwd.value = "";
+  if (agree) agree.checked = false;
+  if (exec) exec.disabled = true;
+  if (err) err.textContent = "";
+  if (body) body.style.display = "block";
+  if (progress) progress.style.display = "none";
+  if (backdrop) backdrop.style.display = "block";
+  if (modal) modal.style.display = "flex";
+}
+
+/** summary: アカウント削除モーダルを閉じ、入力をリセットする */
+function closeDeleteModal() {
+  const backdrop = document.getElementById("delete-modal-backdrop");
+  const modal = document.getElementById("delete-modal");
+  const body = document.getElementById("delete-modal-body");
+  const progress = document.getElementById("delete-progress");
+  const pwd = document.getElementById("delete-password");
+  const agree = document.getElementById("delete-agree");
+  const exec = document.getElementById("delete-execute");
+  const err = document.getElementById("delete-error");
+
+  if (pwd) pwd.value = "";
+  if (agree) agree.checked = false;
+  if (exec) exec.disabled = true;
+  if (err) err.textContent = "";
+  if (body) body.style.display = "block";
+  if (progress) progress.style.display = "none";
+  if (backdrop) backdrop.style.display = "none";
+  if (modal) modal.style.display = "none";
+}
+
 document.getElementById("delete-account-btn")?.addEventListener("click", () => {
-  document.getElementById("delete-confirm").style.display = "block";
+  openDeleteModal();
 });
 
 document.getElementById("delete-cancel")?.addEventListener("click", () => {
-  document.getElementById("delete-confirm").style.display = "none";
+  closeDeleteModal();
+});
+
+document.getElementById("delete-modal-backdrop")?.addEventListener("click", () => {
+  closeDeleteModal();
 });
 
 document
@@ -245,23 +444,36 @@ document.getElementById("delete-execute")?.addEventListener("click", async () =>
 
   const password = document.getElementById("delete-password").value;
   if (!password) {
-    alert("パスワードを入力してください");
+    const errEl = document.getElementById("delete-error");
+    if (errEl) errEl.textContent = "パスワードを入力してください";
     return;
   }
 
   const executeBtn = document.getElementById("delete-execute");
   executeBtn.disabled = true;
   try {
+    const body = document.getElementById("delete-modal-body");
+    const progress = document.getElementById("delete-progress");
+    if (body) body.style.display = "none";
+    if (progress) progress.style.display = "flex";
+
     const credential = EmailAuthProvider.credential(user.email, password);
     await reauthenticateWithCredential(user, credential);
 
     const deleteAccountFn = httpsCallable(functions, "deleteAccount");
     await deleteAccountFn();
     await signOut(auth);
-    document.getElementById("delete-confirm").style.display = "none";
+    closeDeleteModal();
   } catch (err) {
-    alert(err.message || "削除に失敗しました");
+    const errEl = document.getElementById("delete-error");
+    if (errEl) errEl.textContent = formatFirebaseError(err) || "削除に失敗しました";
+    const body = document.getElementById("delete-modal-body");
+    const progress = document.getElementById("delete-progress");
+    if (body) body.style.display = "block";
+    if (progress) progress.style.display = "none";
   } finally {
     executeBtn.disabled = false;
   }
 });
+
+// 従量課金プランは plan-btn（Checkout）経由で選択する
