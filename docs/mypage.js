@@ -92,6 +92,7 @@ function renderAccountDeletedState(isDeleted, payload) {
   const sub = document.getElementById("account-deleted-banner-sub");
   const restoreBtn = document.getElementById("restore-account-btn");
   const restoreErr = document.getElementById("restore-account-error");
+  const licenseDetails = document.getElementById("license-details");
   const planSection = document.getElementById("plan-cards-section");
   const cancelBtn = document.getElementById("cancel-subscription-btn");
   const deleteBtn = document.getElementById("delete-account-btn");
@@ -101,6 +102,7 @@ function renderAccountDeletedState(isDeleted, payload) {
 
   if (!isDeleted) {
     banner.style.display = "none";
+    if (licenseDetails) licenseDetails.style.display = "";
     if (planSection) planSection.style.display = "";
     if (cancelBtn) cancelBtn.style.display = "";
     if (deleteBtn) deleteBtn.style.display = "";
@@ -109,6 +111,7 @@ function renderAccountDeletedState(isDeleted, payload) {
   }
 
   banner.style.display = "block";
+  if (licenseDetails) licenseDetails.style.display = "none";
   if (planSection) planSection.style.display = "none";
   if (cancelBtn) cancelBtn.style.display = "none";
   if (deleteBtn) deleteBtn.style.display = "none";
@@ -490,7 +493,9 @@ onAuthStateChanged(auth, (user) => {
 document.getElementById("restore-account-btn")?.addEventListener("click", async () => {
   const btn = document.getElementById("restore-account-btn");
   const errEl = document.getElementById("restore-account-error");
+  const okEl = document.getElementById("restore-success-msg");
   if (errEl) errEl.textContent = "";
+  if (okEl) okEl.style.display = "none";
   btn.disabled = true;
   try {
     const user = auth.currentUser;
@@ -504,8 +509,9 @@ document.getElementById("restore-account-btn")?.addEventListener("click", async 
       if (errEl) errEl.textContent = "このアカウントは削除予約中ではありません。";
       return;
     }
-    // 監視が追従するが、即時反映のため軽くメッセージ表示
+    // 監視が追従するが、即時反映のため成功メッセージを表示
     setPageError("");
+    if (okEl) okEl.style.display = "block";
   } catch (err) {
     if (errEl) errEl.textContent = formatFirebaseError(err) || "復活に失敗しました";
   } finally {

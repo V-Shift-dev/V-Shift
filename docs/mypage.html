@@ -73,6 +73,9 @@
       <div id="payment-cancel-msg" class="info-msg" style="display:none;">
         決済がキャンセルされました。
       </div>
+      <div id="restore-success-msg" class="success-msg" style="display:none;">
+        アカウントを復活しました。アプリへログインできるようになります。
+      </div>
 
       <section class="license-card">
         <h2>契約状況</h2>
@@ -94,14 +97,16 @@
             ※初回は反映まで少し時間がかかる場合があります（最大30秒）
           </div>
         </div>
-        <p><strong>現在のプラン:</strong> <span id="plan-name">---</span></p>
-        <p><strong>今月の通信量:</strong> <span id="usage-text">---</span></p>
-        <div class="progress-bar">
-          <div id="usage-bar" class="progress-fill" style="width:0%"></div>
+        <div id="license-details">
+          <p><strong>現在のプラン:</strong> <span id="plan-name">---</span></p>
+          <p><strong>今月の通信量:</strong> <span id="usage-text">---</span></p>
+          <div class="progress-bar">
+            <div id="usage-bar" class="progress-fill" style="width:0%"></div>
+          </div>
+          <p class="renew-hint">※契約更新日から30日でリセットされます</p>
+          <p id="renewed-at"><strong>契約更新日:</strong> <span id="renewed-at-value">---</span></p>
+          <div id="ondemand-status" class="ondemand-status" style="display:none;"></div>
         </div>
-        <p class="renew-hint">※契約更新日から30日でリセットされます</p>
-        <p id="renewed-at"><strong>契約更新日:</strong> <span id="renewed-at-value">---</span></p>
-        <div id="ondemand-status" class="ondemand-status" style="display:none;"></div>
         <p class="renew-hint" style="margin-top: 0.75rem; opacity: 0.85;">
           ※解約（サブスク停止）はこのページからお手続きできます。解約手続き後も<strong>契約期間満了（次回更新日）までは</strong>利用できます。<br>
           ※契約期間満了（次回更新日）以降は利用できなくなり、Firebase 上の関連データはそこから <strong>30 日間</strong>保持されたのち削除されます（ローカルPCのデータは残ります）。<br>
