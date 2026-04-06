@@ -49,6 +49,8 @@ const PLAN_NAMES = {
   ondemand: "従量課金",
 };
 
+const SIGNUP_RETRY_KEY = "vshift_signup_retry_v1";
+
 /** summary: 画面上部のエラー表示を更新する */
 function setPageError(message) {
   const el = document.getElementById("page-error");
@@ -82,6 +84,97 @@ function showSection(sectionId) {
     sectionId === "auth" ? "block" : "none";
   document.getElementById("mypage-section").style.display =
     sectionId === "mypage" ? "block" : "none";
+}
+
+/** summary: 契約状況のローディング表示を切り替える */
+function setLicenseLoading(isLoading) {
+  const el = document.getElementById("license-loading");
+  if (!el) return;
+  el.style.display = isLoading ? "block" : "none";
+}
+
+/** summary: サインアップ直後のライセンス再試行トークンを開始する */
+function markSignupRetryStart() {
+  try {
+    sessionStorage.setItem(SIGNUP_RETRY_KEY, String(Date.now()));
+  } catch {
+    // ignore
+  }
+}
+
+/** summary: サインアップ直後の再試行開始時刻（ms）を取得する */
+function getSignupRetryStartMs() {
+  try {
+    const v = sessionStorage.getItem(SIGNUP_RETRY_KEY);
+    const n = v ? Number(v) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** summary: サインアップ直後の再試行トークンを消す */
+function clearSignupRetryStart() {
+  try {
+    sessionStorage.removeItem(SIGNUP_RETRY_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** summary: RTDB からライセンスを単発で取得（user配下→root）する */
+async function fetchLicenseOnce(uid) {
+  const candidates = [`users/${uid}/License`, `licenses/${uid}`];
+  for (const path of candidates) {
+    try {
+      const snap = await get(ref(db, path));
+      if (snap.exists()) return snap.val();
+    } catch {
+      // ignore and try next
+    }
+  }
+  return null;
+}
+
+/** summary: サインアップ直後だけライセンスを再試行して取得する（5秒後開始、3秒間隔、最大30秒） */
+async function loadLicenseWithRetryAfterSignup(uid) {
+  const startMs = getSignupRetryStartMs();
+  if (!startMs) return { handled: false };
+
+  const maxTotalMs = 30_000;
+  const initialDelayMs = 5_000;
+  const intervalMs = 3_000;
+  const deadline = startMs + maxTotalMs;
+
+  // 既に期限切れなら通常フローへ
+  if (Date.now() > deadline) {
+    clearSignupRetryStart();
+    return { handled: false };
+  }
+
+  setLicenseLoading(true);
+  setPageError("");
+
+  const waitMs = Math.max(0, startMs + initialDelayMs - Date.now());
+  if (waitMs > 0) {
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
+
+  while (Date.now() <= deadline) {
+    const license = await fetchLicenseOnce(uid);
+    if (license) {
+      clearSignupRetryStart();
+      setLicenseLoading(false);
+      renderLicense(license);
+      return { handled: true, license };
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+
+  clearSignupRetryStart();
+  setLicenseLoading(false);
+  setPageError("契約状況が読み取れませんでした。");
+  return { handled: true, license: null };
 }
 
 /** summary: ナビゲーション（ログイン状態）を切り替える */
@@ -247,33 +340,71 @@ onAuthStateChanged(auth, (user) => {
     showSection("mypage");
     showPaymentMessages();
 
-    watchLicense(
-      user.uid,
-      async (license) => {
-        if (license) {
-          renderLicense(license);
-          return;
-        }
-
-        const usedBytes = await loadTrialUsedBytes(user.uid);
-        renderLicense({
-          plan: "trial",
-          limitBytes: 50 * 1024 * 1024,
-          usedBytes,
-          renewedAt: null,
-        });
-      },
-      async (err) => {
-        const usedBytes = await loadTrialUsedBytes(user.uid);
-        renderLicense({
-          plan: "trial",
-          limitBytes: 50 * 1024 * 1024,
-          usedBytes,
-          renewedAt: null,
-        });
-        setPageError(`契約情報の読み取りに失敗しました。\n${formatFirebaseError(err)}`);
+    // サインアップ直後は、Functions側の初期書き込み待ちのためリトライで吸収する
+    loadLicenseWithRetryAfterSignup(user.uid).then((res) => {
+      if (res?.handled && res.license) {
+        // 取得できた後は通常監視へ
+        watchLicense(
+          user.uid,
+          async (license) => {
+            if (license) {
+              renderLicense(license);
+              return;
+            }
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+          },
+          async () => {
+            // サインアップ直後以外の監視エラーは、従来どおり trial 表示＋詳細エラー
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+            setPageError("契約情報の読み取りに失敗しました。");
+          }
+        );
+        return;
       }
-    );
+
+      // 通常フロー（従来の watch + エラー表示）
+      watchLicense(
+        user.uid,
+        async (license) => {
+          if (license) {
+            setLicenseLoading(false);
+            renderLicense(license);
+            return;
+          }
+
+          const usedBytes = await loadTrialUsedBytes(user.uid);
+          renderLicense({
+            plan: "trial",
+            limitBytes: 50 * 1024 * 1024,
+            usedBytes,
+            renewedAt: null,
+          });
+        },
+        async (err) => {
+          setLicenseLoading(false);
+          const usedBytes = await loadTrialUsedBytes(user.uid);
+          renderLicense({
+            plan: "trial",
+            limitBytes: 50 * 1024 * 1024,
+            usedBytes,
+            renewedAt: null,
+          });
+          setPageError(`契約情報の読み取りに失敗しました。\n${formatFirebaseError(err)}`);
+        }
+      );
+    });
   } else {
     showSection("auth");
     closeDeleteModal();
@@ -319,6 +450,8 @@ document.getElementById("signup-form")?.addEventListener("submit", async (e) => 
     if (auth.currentUser && displayName) {
       await updateProfile(auth.currentUser, { displayName });
     }
+    // サインアップ直後の初期ライセンス書き込み待ち対策
+    markSignupRetryStart();
   } catch (err) {
     errEl.textContent = err.message || "アカウント作成に失敗しました";
   } finally {

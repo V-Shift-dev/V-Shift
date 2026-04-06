@@ -161,6 +161,37 @@
   margin-top: 0.25rem;
 }
 
+.license-loading {
+  margin: 0.75rem 0 1.25rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.license-loading-text {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.license-loading-sub {
+  font-size: 0.82rem;
+  color: var(--text-accent);
+  opacity: 0.9;
+  margin-top: 0.4rem;
+}
+
+.progress-indeterminate {
+  width: 35%;
+  animation: indeterminate 1.15s ease-in-out infinite;
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+
 .plan-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
