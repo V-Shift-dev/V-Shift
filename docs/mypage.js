@@ -86,6 +86,56 @@ function showSection(sectionId) {
     sectionId === "mypage" ? "block" : "none";
 }
 
+/** summary: 削除予約中かどうかのUI（復活導線/操作ブロック）を更新する */
+function renderAccountDeletedState(isDeleted, payload) {
+  const banner = document.getElementById("account-deleted-banner");
+  const sub = document.getElementById("account-deleted-banner-sub");
+  const restoreBtn = document.getElementById("restore-account-btn");
+  const restoreErr = document.getElementById("restore-account-error");
+  const planSection = document.getElementById("plan-cards-section");
+  const cancelBtn = document.getElementById("cancel-subscription-btn");
+  const deleteBtn = document.getElementById("delete-account-btn");
+
+  if (restoreErr) restoreErr.textContent = "";
+  if (!banner || !sub) return;
+
+  if (!isDeleted) {
+    banner.style.display = "none";
+    if (planSection) planSection.style.display = "";
+    if (cancelBtn) cancelBtn.style.display = "";
+    if (deleteBtn) deleteBtn.style.display = "";
+    if (restoreBtn) restoreBtn.disabled = false;
+    return;
+  }
+
+  banner.style.display = "block";
+  if (planSection) planSection.style.display = "none";
+  if (cancelBtn) cancelBtn.style.display = "none";
+  if (deleteBtn) deleteBtn.style.display = "none";
+
+  const purgeAt = payload?.purgeAt || payload?.dataDeleteAt || "";
+  const purgeAtText = purgeAt ? `データ削除予定日: ${new Date(purgeAt).toLocaleDateString("ja-JP")}` : "";
+  sub.textContent =
+    "30日以内であれば、このページから復活できます。\n" +
+    "※削除予約中はプラン契約・解約・アカウント削除などの操作はできません。\n" +
+    (purgeAtText ? purgeAtText : "");
+}
+
+/** summary: RTDB の AccountState を監視し、削除予約中なら UI をブロックする */
+function watchAccountState(uid, onState) {
+  const stateRef = ref(db, `users/${uid}/AccountState`);
+  return onValue(
+    stateRef,
+    (snap) => {
+      const v = snap.exists() ? snap.val() : null;
+      onState(v);
+    },
+    () => {
+      // ignore
+    }
+  );
+}
+
 /** summary: 契約状況のローディング表示を切り替える */
 function setLicenseLoading(isLoading) {
   const el = document.getElementById("license-loading");
@@ -340,6 +390,16 @@ onAuthStateChanged(auth, (user) => {
     showSection("mypage");
     showPaymentMessages();
 
+    // AccountState（削除予約中）監視
+    try {
+      watchAccountState(user.uid, (state) => {
+        const deleted = state?.deleted === true;
+        renderAccountDeletedState(deleted, state || {});
+      });
+    } catch {
+      // ignore
+    }
+
     // サインアップ直後は、Functions側の初期書き込み待ちのためリトライで吸収する
     loadLicenseWithRetryAfterSignup(user.uid).then((res) => {
       if (res?.handled && res.license) {
@@ -349,6 +409,10 @@ onAuthStateChanged(auth, (user) => {
           async (license) => {
             if (license) {
               renderLicense(license);
+              // ライセンス側にフラグがある場合も削除予約UIへ反映（AccountState が読めない環境向け）
+              if (license?.accountDeleted === true) {
+                renderAccountDeletedState(true, license);
+              }
               return;
             }
             const usedBytes = await loadTrialUsedBytes(user.uid);
@@ -381,6 +445,9 @@ onAuthStateChanged(auth, (user) => {
           if (license) {
             setLicenseLoading(false);
             renderLicense(license);
+            if (license?.accountDeleted === true) {
+              renderAccountDeletedState(true, license);
+            }
             return;
           }
 
@@ -408,6 +475,7 @@ onAuthStateChanged(auth, (user) => {
   } else {
     showSection("auth");
     closeDeleteModal();
+    renderAccountDeletedState(false, null);
     const hash = (location.hash || "").toLowerCase();
     if (hash === "#signup") {
       document.querySelector(".auth-card").style.display = "none";
@@ -416,6 +484,32 @@ onAuthStateChanged(auth, (user) => {
       document.getElementById("signup-card").style.display = "none";
       document.querySelector(".auth-card").style.display = "block";
     }
+  }
+});
+
+document.getElementById("restore-account-btn")?.addEventListener("click", async () => {
+  const btn = document.getElementById("restore-account-btn");
+  const errEl = document.getElementById("restore-account-error");
+  if (errEl) errEl.textContent = "";
+  btn.disabled = true;
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      if (errEl) errEl.textContent = "ログインが必要です。";
+      return;
+    }
+    const fn = httpsCallable(functions, "restoreAccount");
+    const { data } = await fn({});
+    if (data?.restored === false) {
+      if (errEl) errEl.textContent = "このアカウントは削除予約中ではありません。";
+      return;
+    }
+    // 監視が追従するが、即時反映のため軽くメッセージ表示
+    setPageError("");
+  } catch (err) {
+    if (errEl) errEl.textContent = formatFirebaseError(err) || "復活に失敗しました";
+  } finally {
+    btn.disabled = false;
   }
 });
 
