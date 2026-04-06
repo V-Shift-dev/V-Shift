@@ -193,6 +193,53 @@ function renderLicense(license) {
   }
 }
 
+/** summary: RTDB のライセンス情報を監視し、許可されるパスへフォールバックする */
+function watchLicense(uid, onLicense, onError) {
+  // ルールで許可されやすい user 配下を優先（WPF と同じ方針）
+  const userScopedRef = ref(db, `users/${uid}/License`);
+  let unsubscribeRoot = null;
+
+  const ensureRootListener = () => {
+    if (unsubscribeRoot) return;
+    const rootRef = ref(db, `licenses/${uid}`);
+    unsubscribeRoot = onValue(
+      rootRef,
+      (snap) => {
+        onLicense(snap.exists() ? snap.val() : null);
+      },
+      (err) => {
+        if (onError) onError(err);
+      }
+    );
+  };
+
+  const unsubscribeUserScoped = onValue(
+    userScopedRef,
+    (snap) => {
+      if (snap.exists()) {
+        onLicense(snap.val());
+        return;
+      }
+      // user 配下に無ければ旧スキーマ(root)を試す
+      ensureRootListener();
+    },
+    (err) => {
+      // user 配下が拒否/不在の環境向けに root も試しつつ、エラーは表示する
+      ensureRootListener();
+      if (onError) onError(err);
+    }
+  );
+
+  return () => {
+    try {
+      unsubscribeUserScoped?.();
+    } finally {
+      unsubscribeRoot?.();
+      unsubscribeRoot = null;
+    }
+  };
+}
+
 onAuthStateChanged(auth, (user) => {
   setPageError("");
   renderNav(user);
@@ -200,11 +247,9 @@ onAuthStateChanged(auth, (user) => {
     showSection("mypage");
     showPaymentMessages();
 
-    const licenseRef = ref(db, `licenses/${user.uid}`);
-    onValue(
-      licenseRef,
-      async (snap) => {
-        const license = snap.val();
+    watchLicense(
+      user.uid,
+      async (license) => {
         if (license) {
           renderLicense(license);
           return;
