@@ -446,12 +446,12 @@ document.getElementById("signup-form")?.addEventListener("submit", async (e) => 
   errEl.textContent = "";
   btn.disabled = true;
   try {
+    // サインアップ直後の初期ライセンス書き込み待ち対策（onAuthStateChanged より先にフラグを立てる）
+    markSignupRetryStart();
     await createUserWithEmailAndPassword(auth, email, password);
     if (auth.currentUser && displayName) {
       await updateProfile(auth.currentUser, { displayName });
     }
-    // サインアップ直後の初期ライセンス書き込み待ち対策
-    markSignupRetryStart();
   } catch (err) {
     errEl.textContent = err.message || "アカウント作成に失敗しました";
   } finally {
