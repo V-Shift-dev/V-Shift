@@ -393,6 +393,9 @@ onAuthStateChanged(auth, (user) => {
     showSection("mypage");
     showPaymentMessages();
 
+    // いったん通常表示（=削除予約ではない想定）へ。監視で deleted=true が来たら即ブロックする。
+    renderAccountDeletedState(false, null);
+
     // AccountState（削除予約中）監視
     try {
       watchAccountState(user.uid, (state) => {
