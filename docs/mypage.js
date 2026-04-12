@@ -72,6 +72,54 @@ function formatFirebaseError(err) {
   return code ? `${message}\n(${code})` : message;
 }
 
+/** summary: Callable から取得した Stripe Price ID をプラン順の .plan-btn に反映する */
+async function applyCheckoutPriceIdsToPlanButtons() {
+  const buttons = Array.from(document.querySelectorAll(".plan-btn"));
+  if (!buttons.length) return;
+  try {
+    const fn = httpsCallable(functions, "getCheckoutPriceIds");
+    const { data } = await fn({});
+    const keys = ["lite", "standard", "pro", "ondemand"];
+    keys.forEach((key, i) => {
+      const id = data?.[key];
+      if (id && buttons[i]) buttons[i].dataset.price = String(id);
+    });
+  } catch (err) {
+    // 失敗時は HTML の data-price（本番 ID）のまま → テスト鍵では Checkout が失敗しうる
+    console.error("[mypage] getCheckoutPriceIds failed; using HTML data-price defaults", err);
+  }
+}
+
+/** summary: プラン選択ボタンに Checkout 用のクリックハンドラを付与する */
+function attachPlanButtonHandlers() {
+  document.querySelectorAll(".plan-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const priceId = btn.dataset.price;
+      if (!priceId) return;
+      btn.disabled = true;
+      try {
+        const createCheckout = httpsCallable(functions, "createCheckoutSession");
+        const { data } = await createCheckout({ priceId });
+        if (data?.url) {
+          location.href = data.url;
+        } else {
+          setPageError("決済ページの取得に失敗しました。");
+        }
+      } catch (err) {
+        setPageError(`プラン選択に失敗しました。\n${formatFirebaseError(err)}`);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+/** summary: プラン Price ID の取得後にプラン選択 UI を初期化する */
+async function initPlanPricingUi() {
+  await applyCheckoutPriceIdsToPlanButtons();
+  attachPlanButtonHandlers();
+}
+
 function formatBytes(bytes) {
   if (bytes >= 1024 * 1024 * 1024) {
     return (bytes / (1024 * 1024 * 1024)).toFixed(2) + " GB";
@@ -574,26 +622,7 @@ document.getElementById("show-login")?.addEventListener("click", (e) => {
   document.querySelector(".auth-card").style.display = "block";
 });
 
-document.querySelectorAll(".plan-btn").forEach((btn) => {
-  btn.addEventListener("click", async () => {
-    const priceId = btn.dataset.price;
-    if (!priceId) return;
-    btn.disabled = true;
-    try {
-      const createCheckout = httpsCallable(functions, "createCheckoutSession");
-      const { data } = await createCheckout({ priceId });
-      if (data?.url) {
-        location.href = data.url;
-      } else {
-        setPageError("決済ページの取得に失敗しました。");
-      }
-    } catch (err) {
-      setPageError(`プラン選択に失敗しました。\n${formatFirebaseError(err)}`);
-    } finally {
-      btn.disabled = false;
-    }
-  });
-});
+initPlanPricingUi();
 
 document.getElementById("logout-btn")?.addEventListener("click", async () => {
   await signOut(auth);
