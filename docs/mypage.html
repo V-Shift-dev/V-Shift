@@ -69,6 +69,9 @@
 
       <div id="payment-success-msg" class="success-msg" style="display:none;">
         ご契約ありがとうございます。プランが更新されました。
+        <p class="payment-success-note" style="margin: 0.5rem 0 0; font-size: 0.9rem; font-weight: normal; opacity: 0.9;">
+          契約内容の反映は Stripe からの通知（Webhook）経由で数秒〜1分ほどかかることがあります。下の契約状況が変わらない場合は、しばらく待ってからページを再読み込みするか、管理者に Webhook 設定を確認してもらってください。
+        </p>
       </div>
       <div id="payment-cancel-msg" class="info-msg" style="display:none;">
         決済がキャンセルされました。
