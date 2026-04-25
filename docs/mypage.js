@@ -370,6 +370,41 @@ function renderLicense(license) {
   const cancelBtn = document.getElementById("cancel-subscription-btn");
   if (cancelBtn) cancelBtn.style.display = plan === "trial" ? "none" : "";
 
+  // 現在契約中のプランは選択できないようにする（誤操作防止）
+  // ボタンは「trial」は常に有効、それ以外は現在プランと一致する priceId を無効化する。
+  try {
+    const buttons = Array.from(document.querySelectorAll(".plan-btn"));
+    // Price ID → planKey 逆引き（getCheckoutPriceIds が成功していれば data-price は現環境のID）
+    const priceToPlanKey = new Map();
+    buttons.forEach((b) => {
+      const priceId = b.dataset.price;
+      const label = (b.closest(".plan-card")?.querySelector("h3")?.textContent || "").trim();
+      if (!priceId) return;
+      // 表示名から planKey へ寄せる（最低限）
+      const key =
+        label === "ライト"
+          ? "lite"
+          : label === "スタンダード"
+            ? "standard"
+            : label === "プロ"
+              ? "pro"
+              : label === "従量課金"
+                ? "ondemand"
+                : null;
+      if (key) priceToPlanKey.set(priceId, key);
+    });
+
+    buttons.forEach((b) => {
+      const priceId = b.dataset.price;
+      const key = priceId ? priceToPlanKey.get(priceId) : null;
+      const isCurrent = plan !== "trial" && key && key === plan;
+      b.disabled = !!isCurrent;
+      b.title = isCurrent ? "現在契約中のプランです" : "";
+    });
+  } catch {
+    // ignore
+  }
+
   const ondemandStatus = document.getElementById("ondemand-status");
   if (ondemandStatus) {
     const until = license?.ondemandActiveUntil;
