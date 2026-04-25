@@ -346,6 +346,9 @@ function renderLicense(license) {
   const cancelAt = license?.cancelAt ? new Date(license.cancelAt) : null;
   const cancelledAt = license?.cancelledAt ? new Date(license.cancelledAt) : null;
   const dataDeleteAt = license?.dataDeleteAt ? new Date(license.dataDeleteAt) : null;
+  const ondemandUntil = license?.ondemandActiveUntil ? new Date(license.ondemandActiveUntil) : null;
+  const ondemandActive =
+    ondemandUntil && Number.isFinite(ondemandUntil.getTime()) && ondemandUntil.getTime() > Date.now();
 
   document.getElementById("plan-name").textContent = PLAN_NAMES[plan] || plan;
   document.getElementById("usage-text").textContent =
@@ -399,6 +402,26 @@ function renderLicense(license) {
 
   const cancelBtn = document.getElementById("cancel-subscription-btn");
   if (cancelBtn) cancelBtn.style.display = plan === "trial" ? "none" : "";
+
+  // 従量課金 ON/OFF（アドオン）切替
+  const toggleOndemandBtn = document.getElementById("toggle-ondemand-btn");
+  if (toggleOndemandBtn) {
+    const canToggle = plan !== "trial" && plan !== "canceled";
+    toggleOndemandBtn.style.display = canToggle ? "" : "none";
+    toggleOndemandBtn.textContent = ondemandActive ? "従量課金を無効にする" : "従量課金を有効にする";
+    toggleOndemandBtn.onclick = async () => {
+      toggleOndemandBtn.disabled = true;
+      try {
+        const fn = httpsCallable(functions, ondemandActive ? "deactivateOndemand" : "activateOndemand");
+        await fn({});
+        setPageError("");
+      } catch (err) {
+        setPageError(`従量課金の切り替えに失敗しました。\n${formatFirebaseError(err)}`);
+      } finally {
+        toggleOndemandBtn.disabled = false;
+      }
+    };
+  }
 
   // 既に契約中（trial以外）は、Checkoutで別サブスクを作らない。変更/解約はPortalへ誘導する。
   const planSection = document.getElementById("plan-cards-section");
