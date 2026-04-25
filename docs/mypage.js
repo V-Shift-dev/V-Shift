@@ -342,6 +342,8 @@ function renderLicense(license) {
   const plan = license?.plan || "trial";
   const limitBytes = license?.limitBytes ?? 50 * 1024 * 1024;
   const usedBytes = license?.usedBytes ?? 0;
+  const cancelAtPeriodEnd = license?.cancelAtPeriodEnd === true;
+  const cancelAt = license?.cancelAt ? new Date(license.cancelAt) : null;
 
   document.getElementById("plan-name").textContent = PLAN_NAMES[plan] || plan;
   document.getElementById("usage-text").textContent =
@@ -365,6 +367,21 @@ function renderLicense(license) {
     renewedAtValueEl.textContent = renewedAt
       ? new Date(renewedAt).toLocaleDateString("ja-JP")
       : "---";
+  }
+
+  const cancelStatus = document.getElementById("cancel-status");
+  if (cancelStatus) {
+    if (plan !== "trial" && cancelAtPeriodEnd) {
+      cancelStatus.style.display = "block";
+      const untilText =
+        cancelAt && Number.isFinite(cancelAt.getTime())
+          ? `（${cancelAt.toLocaleDateString("ja-JP")}まで利用可）`
+          : "（次回更新日まで利用可）";
+      cancelStatus.textContent = `解約予約中 ${untilText}`;
+    } else {
+      cancelStatus.style.display = "none";
+      cancelStatus.textContent = "";
+    }
   }
 
   const cancelBtn = document.getElementById("cancel-subscription-btn");
