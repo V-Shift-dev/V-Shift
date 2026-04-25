@@ -344,6 +344,8 @@ function renderLicense(license) {
   const usedBytes = license?.usedBytes ?? 0;
   const cancelAtPeriodEnd = license?.cancelAtPeriodEnd === true;
   const cancelAt = license?.cancelAt ? new Date(license.cancelAt) : null;
+  const cancelledAt = license?.cancelledAt ? new Date(license.cancelledAt) : null;
+  const dataDeleteAt = license?.dataDeleteAt ? new Date(license.dataDeleteAt) : null;
 
   document.getElementById("plan-name").textContent = PLAN_NAMES[plan] || plan;
   document.getElementById("usage-text").textContent =
@@ -371,7 +373,18 @@ function renderLicense(license) {
 
   const cancelStatus = document.getElementById("cancel-status");
   if (cancelStatus) {
-    if (plan !== "trial" && cancelAtPeriodEnd) {
+    if (plan === "canceled") {
+      cancelStatus.style.display = "block";
+      const cancelledAtText =
+        cancelledAt && Number.isFinite(cancelledAt.getTime())
+          ? `解約日: ${cancelledAt.toLocaleDateString("ja-JP")}`
+          : "解約済み";
+      const deleteAtText =
+        dataDeleteAt && Number.isFinite(dataDeleteAt.getTime())
+          ? ` / データ削除予定日: ${dataDeleteAt.toLocaleDateString("ja-JP")}`
+          : "";
+      cancelStatus.textContent = `解約済み（${cancelledAtText}${deleteAtText}）`;
+    } else if (plan !== "trial" && cancelAtPeriodEnd) {
       cancelStatus.style.display = "block";
       const untilText =
         cancelAt && Number.isFinite(cancelAt.getTime())
