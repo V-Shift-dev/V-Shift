@@ -400,6 +400,16 @@ function renderLicense(license) {
   const cancelBtn = document.getElementById("cancel-subscription-btn");
   if (cancelBtn) cancelBtn.style.display = plan === "trial" ? "none" : "";
 
+  // 既に契約中（trial以外）は、Checkoutで別サブスクを作らない。変更/解約はPortalへ誘導する。
+  const planSection = document.getElementById("plan-cards-section");
+  const planChangeNote = document.getElementById("plan-change-note");
+  if (planSection) {
+    planSection.style.display = plan === "trial" ? "" : "none";
+  }
+  if (planChangeNote) {
+    planChangeNote.style.display = plan === "trial" ? "none" : "";
+  }
+
   // 現在契約中のプランは選択できないようにする（誤操作防止）
   // ボタンは「trial」は常に有効、それ以外は現在プランと一致する priceId を無効化する。
   try {
@@ -428,8 +438,14 @@ function renderLicense(license) {
       const priceId = b.dataset.price;
       const key = priceId ? priceToPlanKey.get(priceId) : null;
       const isCurrent = plan !== "trial" && key && key === plan;
-      b.disabled = !!isCurrent;
-      b.title = isCurrent ? "現在契約中のプランです" : "";
+      const shouldDisable = plan !== "trial" ? true : !!isCurrent;
+      b.disabled = shouldDisable;
+      b.title =
+        plan !== "trial"
+          ? "契約中の方は「プラン変更・解約」からお手続きください"
+          : isCurrent
+            ? "現在契約中のプランです"
+            : "";
     });
   } catch {
     // ignore
