@@ -349,6 +349,7 @@ function renderLicense(license) {
   const ondemandUntil = license?.ondemandActiveUntil ? new Date(license.ondemandActiveUntil) : null;
   const ondemandActive =
     ondemandUntil && Number.isFinite(ondemandUntil.getTime()) && ondemandUntil.getTime() > Date.now();
+  const limitReached = limitBytes > 0 && usedBytes >= limitBytes;
 
   document.getElementById("plan-name").textContent = PLAN_NAMES[plan] || plan;
   document.getElementById("usage-text").textContent =
@@ -406,7 +407,10 @@ function renderLicense(license) {
   // 従量課金 ON/OFF（アドオン）切替
   const toggleOndemandBtn = document.getElementById("toggle-ondemand-btn");
   if (toggleOndemandBtn) {
-    const canToggle = plan !== "trial" && plan !== "canceled";
+    const isPaidBasePlan = plan === "lite" || plan === "standard" || plan === "pro";
+    // 新仕様（改）: 有料プラン契約中ならいつでもON/OFF可能。
+    // OFF にしても、ON中に使った超過分は次回更新時に後払いで請求される。
+    const canToggle = isPaidBasePlan;
     toggleOndemandBtn.style.display = canToggle ? "" : "none";
     toggleOndemandBtn.textContent = ondemandActive ? "従量課金を無効にする" : "従量課金を有効にする";
     toggleOndemandBtn.onclick = async () => {
