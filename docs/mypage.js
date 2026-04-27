@@ -423,6 +423,7 @@ function renderLicense(license) {
         setPageError(`従量課金の切り替えに失敗しました。\n${formatFirebaseError(err)}`);
       } finally {
         toggleOndemandBtn.disabled = false;
+        setPageError("error1"); //edit1
       }
     };
   }
