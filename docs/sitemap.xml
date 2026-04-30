@@ -22,7 +22,10 @@
 
   <!-- スクリーンショット画像 -->
   <url>
-    <loc>https://v-shift-dev.github.io/V-Shift/PageImage/screenshot.jpg</loc>
+    <loc>https://v-shift-dev.github.io/V-Shift/PageImage/エクセル出力例.png</loc>
+    <loc>https://v-shift-dev.github.io/V-Shift/PageImage/V-Shift職員・利用者切り替え表示.png</loc>
+    <loc>https://v-shift-dev.github.io/V-Shift/PageImage/V-Shift月表示モード.png</loc>
+    <loc>https://v-shift-dev.github.io/V-Shift/PageImage/V-Shiftダブルブッキングチェック.png</loc>
     <lastmod>2025-07-23</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
