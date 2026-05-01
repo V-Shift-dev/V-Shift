@@ -159,6 +159,21 @@
         <button id="delete-account-btn" class="btn-danger" type="button">アカウントを削除</button>
       </section>
 
+      <!-- 従量課金 ON/OFF 確認モーダル -->
+      <div id="ondemand-confirm-backdrop" class="modal-backdrop" style="display:none;"></div>
+      <div id="ondemand-confirm-modal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="ondemand-confirm-title">
+        <div class="modal-card" style="border-color: rgba(99, 102, 241, 0.25);">
+          <h3 id="ondemand-confirm-title" style="color: var(--text-primary);">従量課金の切り替え確認</h3>
+          <div id="ondemand-confirm-body">
+            <p id="ondemand-confirm-message" style="white-space: pre-line;"></p>
+            <div class="modal-actions">
+              <button id="ondemand-confirm-cancel" class="btn-secondary" type="button">キャンセル</button>
+              <button id="ondemand-confirm-ok" class="btn-secondary" type="button">切り替える</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="delete-modal-backdrop" class="modal-backdrop" style="display:none;"></div>
       <div id="delete-modal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
         <div class="modal-card">
