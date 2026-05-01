@@ -50,6 +50,7 @@ const PLAN_NAMES = {
 };
 
 const SIGNUP_RETRY_KEY = "vshift_signup_retry_v1";
+let latestLicenseSnapshot = null;
 
 /** summary: 画面上部のエラー表示を更新する */
 function setPageError(message) {
@@ -339,6 +340,7 @@ async function loadTrialUsedBytes(uid) {
 
 /** summary: 契約状況UIをレンダリングする */
 function renderLicense(license) {
+  latestLicenseSnapshot = license || null;
   const plan = license?.plan || "trial";
   const limitBytes = license?.limitBytes ?? 50 * 1024 * 1024;
   const usedBytes = license?.usedBytes ?? 0;
@@ -350,6 +352,10 @@ function renderLicense(license) {
   const ondemandActive =
     ondemandUntil && Number.isFinite(ondemandUntil.getTime()) && ondemandUntil.getTime() > Date.now();
   const limitReached = limitBytes > 0 && usedBytes >= limitBytes;
+
+  // 詳細表示（初回レンダリングで表示）
+  const licenseDetails = document.getElementById("license-details");
+  if (licenseDetails) licenseDetails.style.display = "";
 
   document.getElementById("plan-name").textContent = PLAN_NAMES[plan] || plan;
   document.getElementById("usage-text").textContent =
@@ -405,28 +411,7 @@ function renderLicense(license) {
   if (cancelBtn) cancelBtn.style.display = plan === "trial" ? "none" : "";
 
   // 従量課金 ON/OFF（アドオン）切替
-  const toggleOndemandBtn = document.getElementById("toggle-ondemand-btn");
-  if (toggleOndemandBtn) {
-    const isPaidBasePlan = plan === "lite" || plan === "standard" || plan === "pro";
-    // 新仕様（改）: 有料プラン契約中ならいつでもON/OFF可能。
-    // OFF にしても、ON中に使った超過分は次回更新時に後払いで請求される。
-    const canToggle = isPaidBasePlan;
-    toggleOndemandBtn.style.display = canToggle ? "" : "none";
-    toggleOndemandBtn.textContent = ondemandActive ? "従量課金を無効にする" : "従量課金を有効にする";
-    toggleOndemandBtn.onclick = async () => {
-      toggleOndemandBtn.disabled = true;
-      try {
-        const fn = httpsCallable(functions, ondemandActive ? "deactivateOndemand" : "activateOndemand");
-        await fn({});
-        setPageError("");
-      } catch (err) {
-        setPageError(`従量課金の切り替えに失敗しました。\n${formatFirebaseError(err)}`);
-      } finally {
-        toggleOndemandBtn.disabled = false;
-        setPageError("error1"); //edit1
-      }
-    };
-  }
+  updateOndemandToggleUi({ plan, ondemandActive });
 
   // 既に契約中（trial以外）は、Checkoutで別サブスクを作らない。変更/解約はPortalへ誘導する。
   const planSection = document.getElementById("plan-cards-section");
@@ -541,6 +526,71 @@ function watchLicense(uid, onLicense, onError) {
       unsubscribeRoot = null;
     }
   };
+}
+
+/** summary: 従量課金トグルボタンの表示/文言を最新状態で更新する */
+function updateOndemandToggleUi(state) {
+  const toggleOndemandBtn = document.getElementById("toggle-ondemand-btn");
+  if (!toggleOndemandBtn) return;
+
+  const plan = state?.plan || "trial";
+  const ondemandActive = state?.ondemandActive === true;
+
+  const isPaidBasePlan = plan === "lite" || plan === "standard" || plan === "pro";
+  // 新仕様（改）: 有料プラン契約中ならいつでもON/OFF可能。
+  // OFF にしても、ON中に使った超過分は次回更新時に後払いで請求される。
+  const canToggle = isPaidBasePlan;
+  toggleOndemandBtn.style.display = canToggle ? "" : "none";
+  toggleOndemandBtn.textContent = ondemandActive ? "従量課金を無効にする" : "従量課金を有効にする";
+}
+
+/** summary: 従量課金トグルのクリック処理（Functions呼び出し）を実行する */
+async function handleToggleOndemandClick() {
+  const btn = document.getElementById("toggle-ondemand-btn");
+  if (!btn) return;
+
+  const plan = latestLicenseSnapshot?.plan || "trial";
+  const ondemandUntil = latestLicenseSnapshot?.ondemandActiveUntil
+    ? new Date(latestLicenseSnapshot.ondemandActiveUntil)
+    : null;
+  const ondemandActive =
+    ondemandUntil && Number.isFinite(ondemandUntil.getTime()) && ondemandUntil.getTime() > Date.now();
+
+  const isPaidBasePlan = plan === "lite" || plan === "standard" || plan === "pro";
+  if (!isPaidBasePlan) {
+    setPageError("従量課金の切り替えは、有料プラン契約中のみ操作できます。");
+    updateOndemandToggleUi({ plan, ondemandActive });
+    return;
+  }
+
+  const originalText = btn.textContent || "";
+  btn.disabled = true;
+  btn.textContent = "処理中…";
+  try {
+    const fnName = ondemandActive ? "deactivateOndemand" : "activateOndemand";
+    const fn = httpsCallable(functions, fnName);
+    await fn({});
+    setPageError("");
+    // 反映はライセンス監視の更新を待つが、体感のため先にUIだけ戻す
+    updateOndemandToggleUi({ plan, ondemandActive: !ondemandActive });
+  } catch (err) {
+    setPageError(`従量課金の切り替えに失敗しました。\n${formatFirebaseError(err)}`);
+    updateOndemandToggleUi({ plan, ondemandActive });
+  } finally {
+    btn.disabled = false;
+    if (btn.textContent === "処理中…") btn.textContent = originalText;
+  }
+}
+
+/** summary: 従量課金トグルボタンへクリックハンドラを一度だけ紐付ける */
+function attachOndemandToggleHandler() {
+  const btn = document.getElementById("toggle-ondemand-btn");
+  if (!btn) return;
+  if (btn.dataset.bound === "1") return;
+  btn.dataset.bound = "1";
+  btn.addEventListener("click", async () => {
+    await handleToggleOndemandClick();
+  });
 }
 
 onAuthStateChanged(auth, (user) => {
@@ -732,6 +782,7 @@ document.getElementById("show-login")?.addEventListener("click", (e) => {
 });
 
 initPlanPricingUi();
+attachOndemandToggleHandler();
 
 document.getElementById("logout-btn")?.addEventListener("click", async () => {
   await signOut(auth);
