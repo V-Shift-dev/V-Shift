@@ -11,10 +11,6 @@
   <nav>
     <div class="container">
       <div class="logo"><a href="index.html">V-Shift</a></div>
-      <ul>
-        <li><a href="index.html">トップ</a></li>
-        <li id="nav-mypage-item"><a href="mypage.html">マイページ</a></li>
-      </ul>
       <div class="nav-right">
         <div id="nav-auth-buttons" class="nav-auth-buttons">
           <a class="nav-btn" href="mypage.html#login">ログイン</a>
@@ -108,18 +104,23 @@
           </div>
           <p class="renew-hint">※契約更新日から30日でリセットされます</p>
           <p id="renewed-at"><strong>契約更新日:</strong> <span id="renewed-at-value">---</span></p>
+          <div id="cancel-status" class="ondemand-status" style="display:none;"></div>
           <div id="ondemand-status" class="ondemand-status" style="display:none;"></div>
         </div>
         <p class="renew-hint" style="margin-top: 0.75rem; opacity: 0.85;">
           ※解約（サブスク停止）はこのページからお手続きできます。解約手続き後も<strong>契約期間満了（次回更新日）までは</strong>利用できます。<br>
           ※契約期間満了（次回更新日）以降は利用できなくなり、Firebase 上の関連データはそこから <strong>30 日間</strong>保持されたのち削除されます（ローカルPCのデータは残ります）。<br>
           ※ローカルのデータを削除しない限り、再度契約すればデータは復旧可能です。<br>
+          ※従量課金（オンデマンド）は<strong>後払い</strong>です。ON の間に上限を超えて利用した分は、次回更新日に請求されます。OFF に戻しても、OFF までに発生した超過分は次回更新日に請求されます。<br>
           ※銀行振込の場合は、入金確認後に反映されるため、利用開始まで時間がかかる場合があります。
         </p>
       </section>
 
       <section id="plan-cards-section" class="plan-cards">
         <h2>プラン変更</h2>
+        <p id="plan-change-note" class="renew-hint" style="margin: 0 0 0.75rem; opacity: 0.9;">
+          ※すでに契約中の方は、この下の「プラン変更・解約」からお手続きください（複数契約の防止のため）。
+        </p>
         <div class="plan-grid">
           <div class="plan-card">
             <h3>ライト</h3>
@@ -148,10 +149,26 @@
       </section>
 
       <section class="account-actions">
-        <button id="logout-btn" class="btn-secondary">ログアウト</button>
-        <button id="cancel-subscription-btn" class="btn-secondary">解約（サブスク停止）</button>
-        <button id="delete-account-btn" class="btn-danger">アカウントを削除</button>
+        <button id="logout-btn" class="btn-secondary" type="button">ログアウト</button>
+        <button id="cancel-subscription-btn" class="btn-secondary" type="button">プラン変更・解約</button>
+        <button id="toggle-ondemand-btn" class="btn-secondary" type="button" style="display:none;">従量課金を有効にする</button>
+        <button id="delete-account-btn" class="btn-danger" type="button">アカウントを削除</button>
       </section>
+
+      <!-- 従量課金 ON/OFF 確認モーダル -->
+      <div id="ondemand-confirm-backdrop" class="modal-backdrop" style="display:none;"></div>
+      <div id="ondemand-confirm-modal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="ondemand-confirm-title">
+        <div class="modal-card" style="border-color: rgba(99, 102, 241, 0.25);">
+          <h3 id="ondemand-confirm-title" style="color: var(--text-primary);">従量課金の切り替え確認</h3>
+          <div id="ondemand-confirm-body">
+            <p id="ondemand-confirm-message" style="white-space: pre-line;"></p>
+            <div class="modal-actions">
+              <button id="ondemand-confirm-cancel" class="btn-secondary" type="button">キャンセル</button>
+              <button id="ondemand-confirm-ok" class="btn-secondary" type="button">切り替える</button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div id="delete-modal-backdrop" class="modal-backdrop" style="display:none;"></div>
       <div id="delete-modal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
