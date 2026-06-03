@@ -118,6 +118,16 @@ nav .logo {
   color: var(--text-primary);
 }
 
+nav .logo a {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+nav .logo a:hover {
+  color: var(--text-primary);
+}
+
 nav .logo::after {
   content: '';
   display: inline-block;
