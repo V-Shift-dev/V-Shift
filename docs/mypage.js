@@ -260,6 +260,16 @@ function isContractLicense(license) {
   return Boolean(license && typeof license.plan === "string" && license.plan.length > 0);
 }
 
+/** summary: RTDB の permission_denied かどうか（licenses ルートは Web から読めない環境がある） */
+function isPermissionDeniedError(err) {
+  const code = err?.code ? String(err.code) : "";
+  const msg = err?.message ? String(err.message) : "";
+  return (
+    code === "PERMISSION_DENIED" ||
+    /permission_denied/i.test(msg)
+  );
+}
+
 /**
  * summary: users/{uid}/License と licenses/{uid} をマージする
  * WPF が usedBytes のみ PATCH した不完全な user 配下より、Webhook が書いた licenses を優先する。
@@ -279,7 +289,7 @@ function mergeLicenseSnapshots(userScoped, rootScoped) {
   return { ...primary, usedBytes };
 }
 
-/** summary: RTDB からライセンスを単発で取得（user 配下と licenses をマージ）する */
+/** summary: RTDB からライセンスを単発で取得（user 配下優先、必要時のみ licenses を試す）する */
 async function fetchLicenseOnce(uid) {
   let userScoped = null;
   let rootScoped = null;
@@ -289,11 +299,16 @@ async function fetchLicenseOnce(uid) {
   } catch {
     // ignore
   }
+  if (isContractLicense(userScoped)) {
+    return mergeLicenseSnapshots(userScoped, null);
+  }
   try {
     const snap = await get(ref(db, `licenses/${uid}`));
     if (snap.exists()) rootScoped = snap.val();
-  } catch {
-    // ignore
+  } catch (err) {
+    if (!isPermissionDeniedError(err)) {
+      // ignore（ルール拒否は想定内）
+    }
   }
   return mergeLicenseSnapshots(userScoped, rootScoped);
 }
@@ -575,33 +590,65 @@ function renderLicense(license) {
   }
 }
 
-/** summary: RTDB のライセンス情報を監視し、users と licenses の両方をマージして渡す */
+/**
+ * summary: RTDB のライセンス情報を監視する
+ * Web ルールでは licenses/{uid} が読めないことが多いため users/{uid}/License を優先し、
+ * plan が揃っている間は licenses を購読しない（permission_denied を出さない）。
+ */
 function watchLicense(uid, onLicense, onError) {
+  const userScopedRef = ref(db, `users/${uid}/License`);
+  let unsubscribeRoot = null;
   let latestUser = null;
   let latestRoot = null;
 
-  const emit = () => {
+  const stopRootListener = () => {
+    if (!unsubscribeRoot) return;
+    try {
+      unsubscribeRoot();
+    } finally {
+      unsubscribeRoot = null;
+      latestRoot = null;
+    }
+  };
+
+  const emitMerged = () => {
     onLicense(mergeLicenseSnapshots(latestUser, latestRoot));
   };
 
+  const ensureRootListener = () => {
+    if (unsubscribeRoot) return;
+    const rootRef = ref(db, `licenses/${uid}`);
+    unsubscribeRoot = onValue(
+      rootRef,
+      (snap) => {
+        latestRoot = snap.exists() ? snap.val() : null;
+        emitMerged();
+      },
+      (err) => {
+        if (!isPermissionDeniedError(err) && onError) onError(err);
+      }
+    );
+  };
+
   const unsubscribeUserScoped = onValue(
-    ref(db, `users/${uid}/License`),
+    userScopedRef,
     (snap) => {
       latestUser = snap.exists() ? snap.val() : null;
-      emit();
+      if (!snap.exists()) {
+        ensureRootListener();
+        if (!unsubscribeRoot) onLicense(null);
+        return;
+      }
+      if (isContractLicense(latestUser)) {
+        stopRootListener();
+        onLicense(latestUser);
+        return;
+      }
+      ensureRootListener();
+      emitMerged();
     },
     (err) => {
-      if (onError) onError(err);
-    }
-  );
-
-  const unsubscribeRoot = onValue(
-    ref(db, `licenses/${uid}`),
-    (snap) => {
-      latestRoot = snap.exists() ? snap.val() : null;
-      emit();
-    },
-    (err) => {
+      ensureRootListener();
       if (onError) onError(err);
     }
   );
@@ -610,7 +657,7 @@ function watchLicense(uid, onLicense, onError) {
     try {
       unsubscribeUserScoped?.();
     } finally {
-      unsubscribeRoot?.();
+      stopRootListener();
     }
   };
 }
