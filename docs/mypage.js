@@ -50,6 +50,7 @@ const PLAN_NAMES = {
 };
 
 const SIGNUP_RETRY_KEY = "vshift_signup_retry_v1";
+const PAYMENT_RETRY_KEY = "vshift_payment_retry_v1";
 let latestLicenseSnapshot = null;
 let ondemandConfirmResolver = null;
 
@@ -225,18 +226,76 @@ function clearSignupRetryStart() {
   }
 }
 
-/** summary: RTDB からライセンスを単発で取得（user配下→root）する */
-async function fetchLicenseOnce(uid) {
-  const candidates = [`users/${uid}/License`, `licenses/${uid}`];
-  for (const path of candidates) {
-    try {
-      const snap = await get(ref(db, path));
-      if (snap.exists()) return snap.val();
-    } catch {
-      // ignore and try next
-    }
+/** summary: 決済完了直後のライセンス再試行トークンを開始する */
+function markPaymentRetryStart() {
+  try {
+    sessionStorage.setItem(PAYMENT_RETRY_KEY, String(Date.now()));
+  } catch {
+    // ignore
   }
-  return null;
+}
+
+/** summary: 決済完了直後の再試行開始時刻（ms）を取得する */
+function getPaymentRetryStartMs() {
+  try {
+    const v = sessionStorage.getItem(PAYMENT_RETRY_KEY);
+    const n = v ? Number(v) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** summary: 決済完了直後の再試行トークンを消す */
+function clearPaymentRetryStart() {
+  try {
+    sessionStorage.removeItem(PAYMENT_RETRY_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** summary: plan など契約フィールドを持つライセンスかどうか */
+function isContractLicense(license) {
+  return Boolean(license && typeof license.plan === "string" && license.plan.length > 0);
+}
+
+/**
+ * summary: users/{uid}/License と licenses/{uid} をマージする
+ * WPF が usedBytes のみ PATCH した不完全な user 配下より、Webhook が書いた licenses を優先する。
+ */
+function mergeLicenseSnapshots(userScoped, rootScoped) {
+  const u =
+    userScoped && typeof userScoped === "object" && !Array.isArray(userScoped) ? userScoped : null;
+  const r =
+    rootScoped && typeof rootScoped === "object" && !Array.isArray(rootScoped) ? rootScoped : null;
+  if (!u && !r) return null;
+
+  const primary = isContractLicense(u) ? u : isContractLicense(r) ? r : u || r;
+  const secondary = primary === u ? r : u;
+  if (!secondary) return { ...primary };
+
+  const usedBytes = Math.max(Number(primary?.usedBytes) || 0, Number(secondary?.usedBytes) || 0);
+  return { ...primary, usedBytes };
+}
+
+/** summary: RTDB からライセンスを単発で取得（user 配下と licenses をマージ）する */
+async function fetchLicenseOnce(uid) {
+  let userScoped = null;
+  let rootScoped = null;
+  try {
+    const snap = await get(ref(db, `users/${uid}/License`));
+    if (snap.exists()) userScoped = snap.val();
+  } catch {
+    // ignore
+  }
+  try {
+    const snap = await get(ref(db, `licenses/${uid}`));
+    if (snap.exists()) rootScoped = snap.val();
+  } catch {
+    // ignore
+  }
+  return mergeLicenseSnapshots(userScoped, rootScoped);
 }
 
 /** summary: サインアップ直後だけライセンスを再試行して取得する（5秒後開始、3秒間隔、最大30秒） */
@@ -280,6 +339,42 @@ async function loadLicenseWithRetryAfterSignup(uid) {
   return { handled: true, license: null };
 }
 
+/** summary: 決済完了直後だけライセンスを再試行して取得する（即時開始、3秒間隔、最大60秒） */
+async function loadLicenseWithRetryAfterPayment(uid) {
+  const startMs = getPaymentRetryStartMs();
+  if (!startMs) return { handled: false };
+
+  const maxTotalMs = 60_000;
+  const intervalMs = 3_000;
+  const deadline = startMs + maxTotalMs;
+
+  if (Date.now() > deadline) {
+    clearPaymentRetryStart();
+    return { handled: false };
+  }
+
+  setLicenseLoading(true);
+  setPageError("");
+
+  while (Date.now() <= deadline) {
+    const license = await fetchLicenseOnce(uid);
+    if (isContractLicense(license)) {
+      clearPaymentRetryStart();
+      setLicenseLoading(false);
+      renderLicense(license);
+      return { handled: true, license };
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+
+  clearPaymentRetryStart();
+  setLicenseLoading(false);
+  setPageError(
+    "お支払いは完了していますが、契約情報の反映に時間がかかっています。数分後に再読み込みするか、反映されない場合はサポートへお問い合わせください。"
+  );
+  return { handled: true, license: null };
+}
+
 /** summary: ナビゲーション（ログイン状態）を切り替える */
 function renderNav(user) {
   const authButtons = document.getElementById("nav-auth-buttons");
@@ -307,6 +402,7 @@ function showPaymentMessages() {
   if (params.get("payment") === "success") {
     paymentSuccess.style.display = "block";
     paymentCancel.style.display = "none";
+    markPaymentRetryStart();
     window.history.replaceState({}, "", location.pathname);
   } else if (params.get("payment") === "cancel") {
     paymentCancel.style.display = "block";
@@ -479,39 +575,33 @@ function renderLicense(license) {
   }
 }
 
-/** summary: RTDB のライセンス情報を監視し、許可されるパスへフォールバックする */
+/** summary: RTDB のライセンス情報を監視し、users と licenses の両方をマージして渡す */
 function watchLicense(uid, onLicense, onError) {
-  // ルールで許可されやすい user 配下を優先（WPF と同じ方針）
-  const userScopedRef = ref(db, `users/${uid}/License`);
-  let unsubscribeRoot = null;
+  let latestUser = null;
+  let latestRoot = null;
 
-  const ensureRootListener = () => {
-    if (unsubscribeRoot) return;
-    const rootRef = ref(db, `licenses/${uid}`);
-    unsubscribeRoot = onValue(
-      rootRef,
-      (snap) => {
-        onLicense(snap.exists() ? snap.val() : null);
-      },
-      (err) => {
-        if (onError) onError(err);
-      }
-    );
+  const emit = () => {
+    onLicense(mergeLicenseSnapshots(latestUser, latestRoot));
   };
 
   const unsubscribeUserScoped = onValue(
-    userScopedRef,
+    ref(db, `users/${uid}/License`),
     (snap) => {
-      if (snap.exists()) {
-        onLicense(snap.val());
-        return;
-      }
-      // user 配下に無ければ旧スキーマ(root)を試す
-      ensureRootListener();
+      latestUser = snap.exists() ? snap.val() : null;
+      emit();
     },
     (err) => {
-      // user 配下が拒否/不在の環境向けに root も試しつつ、エラーは表示する
-      ensureRootListener();
+      if (onError) onError(err);
+    }
+  );
+
+  const unsubscribeRoot = onValue(
+    ref(db, `licenses/${uid}`),
+    (snap) => {
+      latestRoot = snap.exists() ? snap.val() : null;
+      emit();
+    },
+    (err) => {
       if (onError) onError(err);
     }
   );
@@ -521,7 +611,6 @@ function watchLicense(uid, onLicense, onError) {
       unsubscribeUserScoped?.();
     } finally {
       unsubscribeRoot?.();
-      unsubscribeRoot = null;
     }
   };
 }
@@ -695,8 +784,76 @@ onAuthStateChanged(auth, (user) => {
       // ignore
     }
 
-    // サインアップ直後は、Functions側の初期書き込み待ちのためリトライで吸収する
-    loadLicenseWithRetryAfterSignup(user.uid).then((res) => {
+    // 決済直後は Webhook 反映待ちのためリトライで吸収する
+    loadLicenseWithRetryAfterPayment(user.uid).then((paymentRes) => {
+      if (paymentRes?.handled && paymentRes.license) {
+        watchLicense(
+          user.uid,
+          async (license) => {
+            if (license) {
+              renderLicense(license);
+              if (license?.accountDeleted === true) {
+                renderAccountDeletedState(true, license);
+              }
+              return;
+            }
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+          },
+          async () => {
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+            setPageError("契約情報の読み取りに失敗しました。");
+          }
+        );
+        return;
+      }
+      if (paymentRes?.handled) {
+        watchLicense(
+          user.uid,
+          async (license) => {
+            if (license) {
+              renderLicense(license);
+              if (license?.accountDeleted === true) {
+                renderAccountDeletedState(true, license);
+              }
+              return;
+            }
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+          },
+          async () => {
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+          }
+        );
+        return;
+      }
+
+      // サインアップ直後は、Functions側の初期書き込み待ちのためリトライで吸収する
+      return loadLicenseWithRetryAfterSignup(user.uid);
+    }).then((res) => {
+      if (!res) return;
       if (res?.handled && res.license) {
         // 取得できた後は通常監視へ
         watchLicense(
