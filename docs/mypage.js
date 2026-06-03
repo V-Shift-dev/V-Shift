@@ -51,6 +51,7 @@ const PLAN_NAMES = {
 
 const SIGNUP_RETRY_KEY = "vshift_signup_retry_v1";
 const PAYMENT_RETRY_KEY = "vshift_payment_retry_v1";
+const LICENSE_SYNC_ONCE_KEY = "vshift_license_sync_once_v1";
 let latestLicenseSnapshot = null;
 let ondemandConfirmResolver = null;
 
@@ -354,6 +355,77 @@ async function loadLicenseWithRetryAfterSignup(uid) {
   return { handled: true, license: null };
 }
 
+/** summary: Stripe から契約情報を RTDB へ同期する（Webhook 待ちのフォールバック） */
+async function syncLicenseFromStripeCallable() {
+  try {
+    const fn = httpsCallable(functions, "syncSubscriptionLicense");
+    const { data } = await fn({});
+    return Boolean(data?.synced);
+  } catch (err) {
+    console.warn("[mypage] syncSubscriptionLicense failed", err);
+    return false;
+  }
+}
+
+/** summary: トライアル表示のままのとき、セッション1回だけ Stripe から契約同期を試す */
+async function maybeSyncLicenseOnceIfTrial(uid) {
+  try {
+    if (sessionStorage.getItem(LICENSE_SYNC_ONCE_KEY)) return;
+  } catch {
+    return;
+  }
+  const license = await fetchLicenseOnce(uid);
+  if (isContractLicense(license)) return;
+
+  const ok = await syncLicenseFromStripeCallable();
+  try {
+    sessionStorage.setItem(LICENSE_SYNC_ONCE_KEY, "1");
+  } catch {
+    // ignore
+  }
+  if (!ok) return;
+
+  const updated = await fetchLicenseOnce(uid);
+  if (isContractLicense(updated)) {
+    setPageError("");
+    renderLicense(updated);
+  }
+}
+
+/** summary: 「契約情報を再取得」ボタンのクリック処理 */
+async function handleSyncLicenseButtonClick() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const btn = document.getElementById("sync-license-btn");
+  const originalText = btn?.textContent || "";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "取得中…";
+  }
+  setPageError("");
+
+  try {
+    const ok = await syncLicenseFromStripeCallable();
+    const license = await fetchLicenseOnce(user.uid);
+    if (ok && isContractLicense(license)) {
+      renderLicense(license);
+      return;
+    }
+    setPageError(
+      "契約情報を取得できませんでした。お支払い直後の場合は数分待ってから再度お試しください。"
+    );
+    if (license) renderLicense(license);
+  } catch (err) {
+    setPageError(`契約情報の取得に失敗しました。\n${formatFirebaseError(err)}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  }
+}
+
 /** summary: 決済完了直後だけライセンスを再試行して取得する（即時開始、3秒間隔、最大60秒） */
 async function loadLicenseWithRetryAfterPayment(uid) {
   const startMs = getPaymentRetryStartMs();
@@ -371,6 +443,8 @@ async function loadLicenseWithRetryAfterPayment(uid) {
   setLicenseLoading(true);
   setPageError("");
 
+  await syncLicenseFromStripeCallable();
+
   while (Date.now() <= deadline) {
     const license = await fetchLicenseOnce(uid);
     if (isContractLicense(license)) {
@@ -379,6 +453,7 @@ async function loadLicenseWithRetryAfterPayment(uid) {
       renderLicense(license);
       return { handled: true, license };
     }
+    await syncLicenseFromStripeCallable();
     await new Promise((r) => setTimeout(r, intervalMs));
   }
 
@@ -830,6 +905,12 @@ onAuthStateChanged(auth, (user) => {
     } catch {
       // ignore
     }
+
+    void maybeSyncLicenseOnceIfTrial(user.uid);
+
+    document.getElementById("sync-license-btn")?.addEventListener("click", () => {
+      void handleSyncLicenseButtonClick();
+    });
 
     // 決済直後は Webhook 反映待ちのためリトライで吸収する
     loadLicenseWithRetryAfterPayment(user.uid).then((paymentRes) => {
