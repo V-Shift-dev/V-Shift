@@ -76,30 +76,58 @@ function formatFirebaseError(err) {
   return code ? `${message}\n(${code})` : message;
 }
 
-/** summary: Callable から取得した Stripe Price ID をプラン順の .plan-btn に反映する */
+/**
+ * summary: プラン選択ボタン（.plan-card 内の .plan-btn）のみを取得する
+ * <remarks>
+ * 「契約情報を再取得」など別用途ボタンを含めないこと。
+ * </remarks>
+ * <returns>プラン選択用ボタンの配列</returns>
+ */
+function getPlanSelectButtons() {
+  return Array.from(document.querySelectorAll(".plan-card .plan-btn"));
+}
+
+/**
+ * summary: Callable から取得した Stripe Price ID を data-plan に対応するボタンへ反映する
+ * <remarks>
+ * <list type="bullet">
+ * <item><description>data-plan（lite/standard/pro/ondemand）で紐付ける</description></item>
+ * <item><description>失敗時は HTML の data-price（本番 ID）のまま → テスト鍵では Checkout が失敗しうる</description></item>
+ * </list>
+ * </remarks>
+ */
 async function applyCheckoutPriceIdsToPlanButtons() {
-  const buttons = Array.from(document.querySelectorAll(".plan-btn"));
+  const buttons = getPlanSelectButtons();
   if (!buttons.length) return;
   try {
     const fn = httpsCallable(functions, "getCheckoutPriceIds");
     const { data } = await fn({});
     const keys = ["lite", "standard", "pro", "ondemand"];
-    keys.forEach((key, i) => {
+    keys.forEach((key) => {
       const id = data?.[key];
-      if (id && buttons[i]) buttons[i].dataset.price = String(id);
+      if (!id) return;
+      const btn = buttons.find((b) => b.dataset.plan === key);
+      if (btn) btn.dataset.price = String(id);
     });
   } catch (err) {
-    // 失敗時は HTML の data-price（本番 ID）のまま → テスト鍵では Checkout が失敗しうる
     console.error("[mypage] getCheckoutPriceIds failed; using HTML data-price defaults", err);
   }
 }
 
-/** summary: プラン選択ボタンに Checkout 用のクリックハンドラを付与する */
+/**
+ * summary: プラン選択ボタンに Checkout 用のクリックハンドラを付与する
+ * <remarks>
+ * priceId 未設定時も画面にエラーを出し、無反応に見えないようにする。
+ * </remarks>
+ */
 function attachPlanButtonHandlers() {
-  document.querySelectorAll(".plan-btn").forEach((btn) => {
+  getPlanSelectButtons().forEach((btn) => {
     btn.addEventListener("click", async () => {
       const priceId = btn.dataset.price;
-      if (!priceId) return;
+      if (!priceId) {
+        setPageError("プランの価格設定が取得できていません。ページを再読み込みしてから再度お試しください。");
+        return;
+      }
       btn.disabled = true;
       try {
         const createCheckout = httpsCallable(functions, "createCheckoutSession");
@@ -272,8 +300,7 @@ function isPermissionDeniedError(err) {
 }
 
 /**
- * summary: users/{uid}/License と licenses/{uid} をマージする
- * WPF が usedBytes のみ PATCH した不完全な user 配下より、Webhook が書いた licenses を優先する。
+ * summary: users/{uid}/License と licenses/{uid} をマージする（usedBytes は端末合算で別途取得）
  */
 function mergeLicenseSnapshots(userScoped, rootScoped) {
   const u =
@@ -283,11 +310,70 @@ function mergeLicenseSnapshots(userScoped, rootScoped) {
   if (!u && !r) return null;
 
   const primary = isContractLicense(u) ? u : isContractLicense(r) ? r : u || r;
-  const secondary = primary === u ? r : u;
-  if (!secondary) return { ...primary };
+  return { ...primary };
+}
 
-  const usedBytes = Math.max(Number(primary?.usedBytes) || 0, Number(secondary?.usedBytes) || 0);
-  return { ...primary, usedBytes };
+const TRIAL_PERIOD_KEY = "trial";
+
+/** summary: 請求期間キー（端末 acknowledgedRenewedAt 比較用） */
+function getBillingPeriodKey(license) {
+  const plan = (license?.plan || "trial").toLowerCase();
+  if (plan === "trial") return TRIAL_PERIOD_KEY;
+  return license?.renewedAt ?? "";
+}
+
+/** summary: 旧スキーマの usedBytes をフォールバック読取する */
+async function loadLegacyUsedBytes(uid) {
+  const candidates = [
+    `usage/${uid}/usedBytes`,
+    `users/${uid}/Usage/usedBytes`,
+    `users/${uid}/License/usedBytes`,
+    `licenses/${uid}/usedBytes`,
+  ];
+  for (const path of candidates) {
+    try {
+      const snap = await get(ref(db, path));
+      const val = snap.val();
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      if (typeof val === "string" && val && !Number.isNaN(Number(val))) return Number(val);
+    } catch {
+      // ignore
+    }
+  }
+  return 0;
+}
+
+/** summary: usage/{uid}/devices を合算して通信量を取得する */
+async function loadAggregatedUsedBytes(uid, license, devicesSnapshot) {
+  const periodKey = getBillingPeriodKey(license || { plan: "trial" });
+  let devices = devicesSnapshot;
+  if (devices === undefined) {
+    try {
+      const snap = await get(ref(db, `usage/${uid}/devices`));
+      devices = snap.exists() ? snap.val() : null;
+    } catch {
+      devices = null;
+    }
+  }
+  if (!devices || typeof devices !== "object") {
+    return loadLegacyUsedBytes(uid);
+  }
+  let total = 0;
+  for (const entry of Object.values(devices)) {
+    if (!entry || typeof entry !== "object") continue;
+    const ack = entry.acknowledgedRenewedAt ?? "";
+    if (ack !== periodKey) continue;
+    const used = Number(entry.usedBytes);
+    if (Number.isFinite(used)) total += used;
+  }
+  return total;
+}
+
+/** summary: ライセンスに合算 usedBytes を付与する */
+async function attachLicenseUsage(uid, license, devicesSnapshot) {
+  if (!license) return null;
+  const usedBytes = await loadAggregatedUsedBytes(uid, license, devicesSnapshot);
+  return { ...license, usedBytes };
 }
 
 /** summary: RTDB からライセンスを単発で取得（user 配下優先、必要時のみ licenses を試す）する */
@@ -343,7 +429,7 @@ async function loadLicenseWithRetryAfterSignup(uid) {
     if (license) {
       clearSignupRetryStart();
       setLicenseLoading(false);
-      renderLicense(license);
+      renderLicense(await attachLicenseUsage(uid, license));
       return { handled: true, license };
     }
     await new Promise((r) => setTimeout(r, intervalMs));
@@ -388,7 +474,7 @@ async function maybeSyncLicenseOnceIfTrial(uid) {
   const updated = await fetchLicenseOnce(uid);
   if (isContractLicense(updated)) {
     setPageError("");
-    renderLicense(updated);
+    renderLicense(await attachLicenseUsage(uid, updated));
   }
 }
 
@@ -409,13 +495,13 @@ async function handleSyncLicenseButtonClick() {
     const ok = await syncLicenseFromStripeCallable();
     const license = await fetchLicenseOnce(user.uid);
     if (ok && isContractLicense(license)) {
-      renderLicense(license);
+      renderLicense(await attachLicenseUsage(user.uid, license));
       return;
     }
     setPageError(
       "契約情報を取得できませんでした。お支払い直後の場合は数分待ってから再度お試しください。"
     );
-    if (license) renderLicense(license);
+    if (license) renderLicense(await attachLicenseUsage(user.uid, license));
   } catch (err) {
     setPageError(`契約情報の取得に失敗しました。\n${formatFirebaseError(err)}`);
   } finally {
@@ -501,25 +587,9 @@ function showPaymentMessages() {
   }
 }
 
-/** summary: トライアル/未契約時の使用量を RTDB から可能な範囲で取得する */
+/** summary: トライアル/未契約時の使用量（端末合算）を RTDB から取得する */
 async function loadTrialUsedBytes(uid) {
-  const candidates = [
-    `usage/${uid}/usedBytes`,
-    `users/${uid}/Usage/usedBytes`,
-    `users/${uid}/License/usedBytes`,
-  ];
-
-  for (const path of candidates) {
-    try {
-      const snap = await get(ref(db, path));
-      const val = snap.val();
-      if (typeof val === "number" && Number.isFinite(val)) return val;
-      if (typeof val === "string" && val && !Number.isNaN(Number(val))) return Number(val);
-    } catch {
-      // ignore and try next
-    }
-  }
-  return 0;
+  return loadAggregatedUsedBytes(uid, { plan: "trial", renewedAt: null });
 }
 
 /** summary: 契約状況UIをレンダリングする */
@@ -608,33 +678,13 @@ function renderLicense(license) {
   }
 
   // 現在契約中のプランは選択できないようにする（誤操作防止）
-  // ボタンは「trial」は常に有効、それ以外は現在プランと一致する priceId を無効化する。
+  // 「契約情報を再取得」は対象外（Webhook 遅延時の復旧導線を潰さない）
   try {
-    const buttons = Array.from(document.querySelectorAll(".plan-btn"));
-    // Price ID → planKey 逆引き（getCheckoutPriceIds が成功していれば data-price は現環境のID）
-    const priceToPlanKey = new Map();
+    const buttons = getPlanSelectButtons();
     buttons.forEach((b) => {
-      const priceId = b.dataset.price;
-      const label = (b.closest(".plan-card")?.querySelector("h3")?.textContent || "").trim();
-      if (!priceId) return;
-      // 表示名から planKey へ寄せる（最低限）
-      const key =
-        label === "ライト"
-          ? "lite"
-          : label === "スタンダード"
-            ? "standard"
-            : label === "プロ"
-              ? "pro"
-              : label === "従量課金"
-                ? "ondemand"
-                : null;
-      if (key) priceToPlanKey.set(priceId, key);
-    });
-
-    buttons.forEach((b) => {
-      const priceId = b.dataset.price;
-      const key = priceId ? priceToPlanKey.get(priceId) : null;
+      const key = b.dataset.plan || null;
       const isCurrent = plan !== "trial" && key && key === plan;
+      // trial 以外は Checkout カード自体を隠すため全無効。trial 中は現在プラン一致のみ無効。
       const shouldDisable = plan !== "trial" ? true : !!isCurrent;
       b.disabled = shouldDisable;
       b.title =
@@ -672,9 +722,11 @@ function renderLicense(license) {
  */
 function watchLicense(uid, onLicense, onError) {
   const userScopedRef = ref(db, `users/${uid}/License`);
+  const devicesRef = ref(db, `usage/${uid}/devices`);
   let unsubscribeRoot = null;
   let latestUser = null;
   let latestRoot = null;
+  let latestDevices = null;
 
   const stopRootListener = () => {
     if (!unsubscribeRoot) return;
@@ -686,8 +738,13 @@ function watchLicense(uid, onLicense, onError) {
     }
   };
 
-  const emitMerged = () => {
-    onLicense(mergeLicenseSnapshots(latestUser, latestRoot));
+  const emitMerged = async () => {
+    const merged = mergeLicenseSnapshots(latestUser, latestRoot);
+    if (!merged) {
+      onLicense(null);
+      return;
+    }
+    onLicense(await attachLicenseUsage(uid, merged, latestDevices));
   };
 
   const ensureRootListener = () => {
@@ -697,7 +754,7 @@ function watchLicense(uid, onLicense, onError) {
       rootRef,
       (snap) => {
         latestRoot = snap.exists() ? snap.val() : null;
-        emitMerged();
+        void emitMerged();
       },
       (err) => {
         if (!isPermissionDeniedError(err) && onError) onError(err);
@@ -705,22 +762,33 @@ function watchLicense(uid, onLicense, onError) {
     );
   };
 
+  const unsubscribeDevices = onValue(
+    devicesRef,
+    (snap) => {
+      latestDevices = snap.exists() ? snap.val() : null;
+      void emitMerged();
+    },
+    (err) => {
+      if (!isPermissionDeniedError(err) && onError) onError(err);
+    }
+  );
+
   const unsubscribeUserScoped = onValue(
     userScopedRef,
     (snap) => {
       latestUser = snap.exists() ? snap.val() : null;
       if (!snap.exists()) {
         ensureRootListener();
-        if (!unsubscribeRoot) onLicense(null);
+        if (!unsubscribeRoot) void emitMerged();
         return;
       }
       if (isContractLicense(latestUser)) {
         stopRootListener();
-        onLicense(latestUser);
+        void emitMerged();
         return;
       }
       ensureRootListener();
-      emitMerged();
+      void emitMerged();
     },
     (err) => {
       ensureRootListener();
@@ -731,6 +799,7 @@ function watchLicense(uid, onLicense, onError) {
   return () => {
     try {
       unsubscribeUserScoped?.();
+      unsubscribeDevices?.();
     } finally {
       stopRootListener();
     }
