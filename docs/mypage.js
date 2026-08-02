@@ -182,6 +182,17 @@ function attachPlanButtonHandlers() {
       }
       btn.disabled = true;
       try {
+        const user = auth.currentUser;
+        const planLabel = btn.textContent || "プラン変更";
+        const email = user?.email || "（メール不明）";
+        const confirmed = window.confirm(
+          `以下のアカウントで${planLabel}します。\n\nログイン中: ${email}\n\n別アカウントで契約する場合はキャンセルし、ログアウトしてからやり直してください。`
+        );
+        if (!confirmed) {
+          updatePlanSelectButtons(latestLicenseSnapshot?.plan || "trial");
+          return;
+        }
+
         const createCheckout = httpsCallable(functions, "createCheckoutSession");
         const { data } = await createCheckout({ priceId });
         if (data?.url) {
@@ -609,6 +620,11 @@ function renderNav(user) {
   const account = document.getElementById("nav-account");
   const nameEl = document.getElementById("nav-account-name");
   const accountMenu = document.getElementById("nav-account-menu");
+  const planEmailEl = document.getElementById("plan-account-email-value");
+
+  if (planEmailEl) {
+    planEmailEl.textContent = user?.email || "---";
+  }
 
   if (!authButtons || !account || !nameEl) return;
 
