@@ -57,6 +57,18 @@ const PLAN_ORDER = {
 
 const PAID_BASE_PLANS = new Set(["lite", "standard", "pro"]);
 
+/**
+ * summary: オンデマンド利用枠が有効か（ondemandEnabled または旧 ondemandActiveUntil）
+ */
+function isOndemandEnabledLicense(license) {
+  if (!license) return false;
+  if (license.ondemandEnabled === true) return true;
+  const until = license.ondemandActiveUntil;
+  if (!until) return false;
+  const d = new Date(until);
+  return Number.isFinite(d.getTime()) && d.getTime() > Date.now();
+}
+
 const SIGNUP_RETRY_KEY = "vshift_signup_retry_v1";
 const PAYMENT_RETRY_KEY = "vshift_payment_retry_v1";
 const LICENSE_SYNC_ONCE_KEY = "vshift_license_sync_once_v1";
@@ -670,9 +682,7 @@ function renderLicense(license) {
   const cancelAt = license?.cancelAt ? new Date(license.cancelAt) : null;
   const cancelledAt = license?.cancelledAt ? new Date(license.cancelledAt) : null;
   const dataDeleteAt = license?.dataDeleteAt ? new Date(license.dataDeleteAt) : null;
-  const ondemandUntil = license?.ondemandActiveUntil ? new Date(license.ondemandActiveUntil) : null;
-  const ondemandActive =
-    ondemandUntil && Number.isFinite(ondemandUntil.getTime()) && ondemandUntil.getTime() > Date.now();
+  const ondemandActive = isOndemandEnabledLicense(license);
   const limitReached = limitBytes > 0 && usedBytes >= limitBytes;
 
   // 詳細表示（初回レンダリングで表示）
@@ -748,17 +758,10 @@ function renderLicense(license) {
       ondemandStatus.style.display = "none";
       ondemandStatus.textContent = "";
     } else {
-      const until = license?.ondemandActiveUntil;
       ondemandStatus.style.display = "block";
-      if (until) {
-        const d = new Date(until);
-        const active = Number.isFinite(d.getTime()) && d.getTime() > Date.now();
-        ondemandStatus.textContent = active
-          ? `オンデマンド利用枠: 有効（${d.toLocaleDateString("ja-JP")}まで）`
-          : "オンデマンド利用枠: 期限切れ";
-      } else {
-        ondemandStatus.textContent = "オンデマンド利用枠: 無効";
-      }
+      ondemandStatus.textContent = ondemandActive
+        ? "オンデマンド利用枠: 有効（手動で OFF にするまで継続）"
+        : "オンデマンド利用枠: 無効";
     }
   }
 }
@@ -887,7 +890,8 @@ function openOndemandConfirmModal(nextEnable) {
         title,
         "",
         "オンデマンド利用枠は後払いです（¥3 / MB）。",
-        "ON の間に上限を超えて利用した分は、次回更新日に請求されます。",
+        "プランに含まれる通信量を使い切った後の超過分のみ、次回更新日の請求に加算されます。",
+        "ON の間は手動で OFF にするまで有効です。",
         "※誤操作防止のため、内容を確認のうえ「切り替える」を押してください。",
       ].join("\n")
     : [
@@ -952,11 +956,7 @@ async function handleToggleOndemandClick() {
   if (!btn) return;
 
   const plan = latestLicenseSnapshot?.plan || "trial";
-  const ondemandUntil = latestLicenseSnapshot?.ondemandActiveUntil
-    ? new Date(latestLicenseSnapshot.ondemandActiveUntil)
-    : null;
-  const ondemandActive =
-    ondemandUntil && Number.isFinite(ondemandUntil.getTime()) && ondemandUntil.getTime() > Date.now();
+  const ondemandActive = isOndemandEnabledLicense(latestLicenseSnapshot);
 
   if (!PAID_BASE_PLANS.has(plan)) {
     setPageError("オンデマンド利用枠の切り替えは、有料プラン契約中のみ操作できます。");
