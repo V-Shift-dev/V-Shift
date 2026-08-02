@@ -732,8 +732,8 @@ function renderLicense(license) {
   const cancelBtn = document.getElementById("cancel-subscription-btn");
   if (cancelBtn) cancelBtn.style.display = plan === "trial" ? "none" : "";
 
-  // オンデマンド利用枠 ON/OFF（有料プランかつ上限超過後のみ有効化可能）
-  updateOndemandToggleUi({ plan, ondemandActive, limitReached });
+  // オンデマンド利用枠 ON/OFF（有料プラン契約中なら表示）
+  updateOndemandToggleUi({ plan, ondemandActive });
 
   const planSection = document.getElementById("plan-cards-section");
   if (planSection) {
@@ -756,10 +756,8 @@ function renderLicense(license) {
         ondemandStatus.textContent = active
           ? `オンデマンド利用枠: 有効（${d.toLocaleDateString("ja-JP")}まで）`
           : "オンデマンド利用枠: 期限切れ";
-      } else if (limitReached) {
-        ondemandStatus.textContent = "オンデマンド利用枠: 無効（上限超過のため有効化できます）";
       } else {
-        ondemandStatus.textContent = "オンデマンド利用枠: 無効（上限超過後に有効化できます）";
+        ondemandStatus.textContent = "オンデマンド利用枠: 無効";
       }
     }
   }
@@ -863,11 +861,8 @@ function updateOndemandToggleUi(state) {
 
   const plan = state?.plan || "trial";
   const ondemandActive = state?.ondemandActive === true;
-  const limitReached = state?.limitReached === true;
 
-  const isPaidBasePlan = PAID_BASE_PLANS.has(plan);
-  // 有効化は上限超過後のみ。無効化は有効中ならいつでも可能。
-  const canToggle = isPaidBasePlan && (ondemandActive || limitReached);
+  const canToggle = PAID_BASE_PLANS.has(plan);
   toggleOndemandBtn.style.display = canToggle ? "" : "none";
   toggleOndemandBtn.textContent = ondemandActive
     ? "オンデマンド利用枠を無効にする"
@@ -957,9 +952,6 @@ async function handleToggleOndemandClick() {
   if (!btn) return;
 
   const plan = latestLicenseSnapshot?.plan || "trial";
-  const limitBytes = latestLicenseSnapshot?.limitBytes ?? 0;
-  const usedBytes = latestLicenseSnapshot?.usedBytes ?? 0;
-  const limitReached = limitBytes > 0 && usedBytes >= limitBytes;
   const ondemandUntil = latestLicenseSnapshot?.ondemandActiveUntil
     ? new Date(latestLicenseSnapshot.ondemandActiveUntil)
     : null;
@@ -968,20 +960,13 @@ async function handleToggleOndemandClick() {
 
   if (!PAID_BASE_PLANS.has(plan)) {
     setPageError("オンデマンド利用枠の切り替えは、有料プラン契約中のみ操作できます。");
-    updateOndemandToggleUi({ plan, ondemandActive, limitReached });
+    updateOndemandToggleUi({ plan, ondemandActive });
     return;
   }
 
-  if (!ondemandActive && !limitReached) {
-    setPageError("オンデマンド利用枠は、月間通信量の上限を超えた後に有効化できます。");
-    updateOndemandToggleUi({ plan, ondemandActive, limitReached });
-    return;
-  }
-
-  // 誤操作防止の確認
   const confirmed = await openOndemandConfirmModal(!ondemandActive);
   if (!confirmed) {
-    updateOndemandToggleUi({ plan, ondemandActive, limitReached });
+    updateOndemandToggleUi({ plan, ondemandActive });
     return;
   }
 
@@ -994,10 +979,10 @@ async function handleToggleOndemandClick() {
     await fn({});
     setPageError("");
     // 反映はライセンス監視の更新を待つが、体感のため先にUIだけ戻す
-    updateOndemandToggleUi({ plan, ondemandActive: !ondemandActive, limitReached });
+    updateOndemandToggleUi({ plan, ondemandActive: !ondemandActive });
   } catch (err) {
     setPageError(`オンデマンド利用枠の切り替えに失敗しました。\n${formatFirebaseError(err)}`);
-    updateOndemandToggleUi({ plan, ondemandActive, limitReached });
+    updateOndemandToggleUi({ plan, ondemandActive });
   } finally {
     btn.disabled = false;
     if (btn.textContent === "処理中…") btn.textContent = originalText;
@@ -1443,4 +1428,4 @@ document.getElementById("delete-execute")?.addEventListener("click", async () =>
   }
 });
 
-// オンデマンド利用枠は有料プラン上限超過後にトグルで切り替える（単独プランとしては選択不可）
+// オンデマンド利用枠は有料プラン契約中にトグルで切り替える（単独プランとしては選択不可）
