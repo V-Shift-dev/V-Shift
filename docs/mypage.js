@@ -46,8 +46,16 @@ const PLAN_NAMES = {
   lite: "ライト",
   standard: "スタンダード",
   pro: "プロ",
-  ondemand: "従量課金",
 };
+
+/** summary: 有料プランの階層（アップグレード／ダウングレード判定用） */
+const PLAN_ORDER = {
+  lite: 1,
+  standard: 2,
+  pro: 3,
+};
+
+const PAID_BASE_PLANS = new Set(["lite", "standard", "pro"]);
 
 const SIGNUP_RETRY_KEY = "vshift_signup_retry_v1";
 const PAYMENT_RETRY_KEY = "vshift_payment_retry_v1";
@@ -102,7 +110,7 @@ async function applyCheckoutPriceIdsToPlanButtons() {
   try {
     const fn = httpsCallable(functions, "getCheckoutPriceIds");
     const { data } = await fn({});
-    const keys = ["lite", "standard", "pro", "ondemand"];
+    const keys = ["lite", "standard", "pro"];
     keys.forEach((key) => {
       const id = data?.[key];
       if (!id) return;
@@ -112,6 +120,50 @@ async function applyCheckoutPriceIdsToPlanButtons() {
   } catch (err) {
     console.error("[mypage] getCheckoutPriceIds failed; using HTML data-price defaults", err);
   }
+}
+
+/**
+ * summary: プラン選択ボタンの表示ラベルを決定する
+ * <remarks>
+ * <list type="bullet">
+ * <item><description>トライアル中は「選択」</description></item>
+ * <item><description>契約中プランは「契約中」（無効）</description></item>
+ * <item><description>上位プランは「アップグレード」、下位は「ダウングレード」</description></item>
+ * </list>
+ * </remarks>
+ */
+function getPlanButtonLabel(currentPlan, targetPlan) {
+  if (!PAID_BASE_PLANS.has(targetPlan)) return "選択";
+  if (currentPlan === "trial") return "選択";
+  if (currentPlan === targetPlan) return "契約中";
+  const currentOrder = PLAN_ORDER[currentPlan] || 0;
+  const targetOrder = PLAN_ORDER[targetPlan] || 0;
+  if (targetOrder > currentOrder) return "アップグレード";
+  if (targetOrder < currentOrder) return "ダウングレード";
+  return "選択";
+}
+
+/**
+ * summary: 契約状況に応じてプランカードのボタン表示を更新する
+ */
+function updatePlanSelectButtons(plan) {
+  const currentPlan = (plan || "trial").toLowerCase();
+  const buttons = getPlanSelectButtons();
+  const sectionTitle = document.getElementById("plan-section-title");
+  if (sectionTitle) {
+    sectionTitle.textContent = currentPlan === "trial" ? "プラン選択" : "プラン変更";
+  }
+
+  buttons.forEach((btn) => {
+    const key = (btn.dataset.plan || "").toLowerCase();
+    if (!PAID_BASE_PLANS.has(key)) return;
+
+    const isCurrent = PAID_BASE_PLANS.has(currentPlan) && key === currentPlan;
+    btn.textContent = getPlanButtonLabel(currentPlan, key);
+    btn.disabled = isCurrent;
+    btn.title = isCurrent ? "現在契約中のプランです" : "";
+    btn.classList.toggle("plan-btn-current", isCurrent);
+  });
 }
 
 /**
@@ -140,7 +192,7 @@ function attachPlanButtonHandlers() {
       } catch (err) {
         setPageError(`プラン選択に失敗しました。\n${formatFirebaseError(err)}`);
       } finally {
-        btn.disabled = false;
+        updatePlanSelectButtons(latestLicenseSnapshot?.plan || "trial");
       }
     });
   });
@@ -654,7 +706,7 @@ function renderLicense(license) {
         cancelAt && Number.isFinite(cancelAt.getTime())
           ? `（${cancelAt.toLocaleDateString("ja-JP")}まで利用可）`
           : "（次回更新日まで利用可）";
-      cancelStatus.textContent = `解約予約中 ${untilText}`;
+      cancelStatus.textContent = `解約予約中 ${untilText}（更新日以降はトライアル扱いとなります）`;
     } else {
       cancelStatus.style.display = "none";
       cancelStatus.textContent = "";
@@ -664,53 +716,35 @@ function renderLicense(license) {
   const cancelBtn = document.getElementById("cancel-subscription-btn");
   if (cancelBtn) cancelBtn.style.display = plan === "trial" ? "none" : "";
 
-  // 従量課金 ON/OFF（アドオン）切替
-  updateOndemandToggleUi({ plan, ondemandActive });
+  // オンデマンド利用枠 ON/OFF（有料プランかつ上限超過後のみ有効化可能）
+  updateOndemandToggleUi({ plan, ondemandActive, limitReached });
 
-  // 既に契約中（trial以外）は、Checkoutで別サブスクを作らない。変更/解約はPortalへ誘導する。
   const planSection = document.getElementById("plan-cards-section");
-  const planChangeNote = document.getElementById("plan-change-note");
   if (planSection) {
-    planSection.style.display = plan === "trial" ? "" : "none";
-  }
-  if (planChangeNote) {
-    planChangeNote.style.display = plan === "trial" ? "none" : "";
+    planSection.style.display = "";
   }
 
-  // 現在契約中のプランは選択できないようにする（誤操作防止）
-  // 「契約情報を再取得」は対象外（Webhook 遅延時の復旧導線を潰さない）
-  try {
-    const buttons = getPlanSelectButtons();
-    buttons.forEach((b) => {
-      const key = b.dataset.plan || null;
-      const isCurrent = plan !== "trial" && key && key === plan;
-      // trial 以外は Checkout カード自体を隠すため全無効。trial 中は現在プラン一致のみ無効。
-      const shouldDisable = plan !== "trial" ? true : !!isCurrent;
-      b.disabled = shouldDisable;
-      b.title =
-        plan !== "trial"
-          ? "契約中の方は「プラン変更・解約」からお手続きください"
-          : isCurrent
-            ? "現在契約中のプランです"
-            : "";
-    });
-  } catch {
-    // ignore
-  }
+  updatePlanSelectButtons(plan);
 
   const ondemandStatus = document.getElementById("ondemand-status");
   if (ondemandStatus) {
-    const until = license?.ondemandActiveUntil;
-    if (until) {
-      const d = new Date(until);
-      const active = Number.isFinite(d.getTime()) && d.getTime() > Date.now();
-      ondemandStatus.style.display = "block";
-      ondemandStatus.textContent = active
-        ? `従量課金: 有効（${d.toLocaleDateString("ja-JP")}まで）`
-        : "従量課金: 期限切れ";
+    if (!PAID_BASE_PLANS.has(plan)) {
+      ondemandStatus.style.display = "none";
+      ondemandStatus.textContent = "";
     } else {
+      const until = license?.ondemandActiveUntil;
       ondemandStatus.style.display = "block";
-      ondemandStatus.textContent = "従量課金: 無効";
+      if (until) {
+        const d = new Date(until);
+        const active = Number.isFinite(d.getTime()) && d.getTime() > Date.now();
+        ondemandStatus.textContent = active
+          ? `オンデマンド利用枠: 有効（${d.toLocaleDateString("ja-JP")}まで）`
+          : "オンデマンド利用枠: 期限切れ";
+      } else if (limitReached) {
+        ondemandStatus.textContent = "オンデマンド利用枠: 無効（上限超過のため有効化できます）";
+      } else {
+        ondemandStatus.textContent = "オンデマンド利用枠: 無効（上限超過後に有効化できます）";
+      }
     }
   }
 }
@@ -806,20 +840,22 @@ function watchLicense(uid, onLicense, onError) {
   };
 }
 
-/** summary: 従量課金トグルボタンの表示/文言を最新状態で更新する */
+/** summary: オンデマンド利用枠トグルボタンの表示/文言を最新状態で更新する */
 function updateOndemandToggleUi(state) {
   const toggleOndemandBtn = document.getElementById("toggle-ondemand-btn");
   if (!toggleOndemandBtn) return;
 
   const plan = state?.plan || "trial";
   const ondemandActive = state?.ondemandActive === true;
+  const limitReached = state?.limitReached === true;
 
-  const isPaidBasePlan = plan === "lite" || plan === "standard" || plan === "pro";
-  // 新仕様（改）: 有料プラン契約中ならいつでもON/OFF可能。
-  // OFF にしても、ON中に使った超過分は次回更新時に後払いで請求される。
-  const canToggle = isPaidBasePlan;
+  const isPaidBasePlan = PAID_BASE_PLANS.has(plan);
+  // 有効化は上限超過後のみ。無効化は有効中ならいつでも可能。
+  const canToggle = isPaidBasePlan && (ondemandActive || limitReached);
   toggleOndemandBtn.style.display = canToggle ? "" : "none";
-  toggleOndemandBtn.textContent = ondemandActive ? "従量課金を無効にする" : "従量課金を有効にする";
+  toggleOndemandBtn.textContent = ondemandActive
+    ? "オンデマンド利用枠を無効にする"
+    : "オンデマンド利用枠を有効にする";
 }
 
 /** summary: 従量課金の切り替え確認モーダルを開く（ユーザーの選択を Promise で返す） */
@@ -834,12 +870,12 @@ function openOndemandConfirmModal(nextEnable) {
   // 多重起動防止（前回が残っている場合は否決）
   if (ondemandConfirmResolver) return Promise.resolve(false);
 
-  const title = nextEnable ? "従量課金を有効にしますか？" : "従量課金を無効にしますか？";
+  const title = nextEnable ? "オンデマンド利用枠を有効にしますか？" : "オンデマンド利用枠を無効にしますか？";
   const body = nextEnable
     ? [
         title,
         "",
-        "従量課金（オンデマンド）は後払いです。",
+        "オンデマンド利用枠は後払いです（¥3 / MB）。",
         "ON の間に上限を超えて利用した分は、次回更新日に請求されます。",
         "※誤操作防止のため、内容を確認のうえ「切り替える」を押してください。",
       ].join("\n")
@@ -847,7 +883,7 @@ function openOndemandConfirmModal(nextEnable) {
         title,
         "",
         "OFF に戻しても、OFF にするまでに発生した超過分は次回更新日に請求されます。",
-        "※従量課金の新規発生は止まります。",
+        "※オンデマンド利用枠の新規発生は止まります。",
       ].join("\n");
 
   msg.textContent = body;
@@ -905,23 +941,31 @@ async function handleToggleOndemandClick() {
   if (!btn) return;
 
   const plan = latestLicenseSnapshot?.plan || "trial";
+  const limitBytes = latestLicenseSnapshot?.limitBytes ?? 0;
+  const usedBytes = latestLicenseSnapshot?.usedBytes ?? 0;
+  const limitReached = limitBytes > 0 && usedBytes >= limitBytes;
   const ondemandUntil = latestLicenseSnapshot?.ondemandActiveUntil
     ? new Date(latestLicenseSnapshot.ondemandActiveUntil)
     : null;
   const ondemandActive =
     ondemandUntil && Number.isFinite(ondemandUntil.getTime()) && ondemandUntil.getTime() > Date.now();
 
-  const isPaidBasePlan = plan === "lite" || plan === "standard" || plan === "pro";
-  if (!isPaidBasePlan) {
-    setPageError("従量課金の切り替えは、有料プラン契約中のみ操作できます。");
-    updateOndemandToggleUi({ plan, ondemandActive });
+  if (!PAID_BASE_PLANS.has(plan)) {
+    setPageError("オンデマンド利用枠の切り替えは、有料プラン契約中のみ操作できます。");
+    updateOndemandToggleUi({ plan, ondemandActive, limitReached });
+    return;
+  }
+
+  if (!ondemandActive && !limitReached) {
+    setPageError("オンデマンド利用枠は、月間通信量の上限を超えた後に有効化できます。");
+    updateOndemandToggleUi({ plan, ondemandActive, limitReached });
     return;
   }
 
   // 誤操作防止の確認
   const confirmed = await openOndemandConfirmModal(!ondemandActive);
   if (!confirmed) {
-    updateOndemandToggleUi({ plan, ondemandActive });
+    updateOndemandToggleUi({ plan, ondemandActive, limitReached });
     return;
   }
 
@@ -934,10 +978,10 @@ async function handleToggleOndemandClick() {
     await fn({});
     setPageError("");
     // 反映はライセンス監視の更新を待つが、体感のため先にUIだけ戻す
-    updateOndemandToggleUi({ plan, ondemandActive: !ondemandActive });
+    updateOndemandToggleUi({ plan, ondemandActive: !ondemandActive, limitReached });
   } catch (err) {
-    setPageError(`従量課金の切り替えに失敗しました。\n${formatFirebaseError(err)}`);
-    updateOndemandToggleUi({ plan, ondemandActive });
+    setPageError(`オンデマンド利用枠の切り替えに失敗しました。\n${formatFirebaseError(err)}`);
+    updateOndemandToggleUi({ plan, ondemandActive, limitReached });
   } finally {
     btn.disabled = false;
     if (btn.textContent === "処理中…") btn.textContent = originalText;
@@ -1383,4 +1427,4 @@ document.getElementById("delete-execute")?.addEventListener("click", async () =>
   }
 });
 
-// 従量課金プランは plan-btn（Checkout）経由で選択する
+// オンデマンド利用枠は有料プラン上限超過後にトグルで切り替える（単独プランとしては選択不可）

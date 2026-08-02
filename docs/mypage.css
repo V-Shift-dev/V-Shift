@@ -246,13 +246,16 @@
   font-size: 0.95rem;
 }
 
-.plan-btn:hover {
+.plan-btn:hover:not(:disabled) {
   background: var(--primary-dark);
 }
 
-.plan-btn:disabled {
-  opacity: 0.6;
+.plan-btn:disabled,
+.plan-btn.plan-btn-current {
+  background: var(--base-elevated);
+  color: var(--text-accent);
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .account-actions {

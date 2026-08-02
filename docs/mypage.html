@@ -113,18 +113,21 @@
           </p>
         </div>
         <p class="renew-hint" style="margin-top: 0.75rem; opacity: 0.85;">
-          ※解約（サブスク停止）はこのページからお手続きできます。解約手続き後も<strong>契約期間満了（次回更新日）までは</strong>利用できます。<br>
-          ※契約期間満了（次回更新日）以降は利用できなくなり、Firebase 上の関連データはそこから <strong>30 日間</strong>保持されたのち削除されます（ローカルPCのデータは残ります）。<br>
+          ※解約（サブスク停止）はこのページからお手続きできます。解約手続き後も<strong>契約期間満了（次回更新日）までは</strong>利用できます。更新日以降は<strong>トライアル扱い</strong>となります。<br>
+          ※契約期間満了（次回更新日）以降、Firebase 上の関連データはそこから <strong>30 日間</strong>保持されたのち削除されます（ローカルPCのデータは残ります）。<br>
           ※ローカルのデータを削除しない限り、再度契約すればデータは復旧可能です。<br>
-          ※従量課金（オンデマンド）は<strong>後払い</strong>です。ON の間に上限を超えて利用した分は、次回更新日に請求されます。OFF に戻しても、OFF までに発生した超過分は次回更新日に請求されます。<br>
+          ※オンデマンド利用枠は、ライト・スタンダード・プロのいずれかのプラン契約中に、月間通信量の上限を超えた後にのみ有効化できます（<strong>後払い</strong>）。ON の間に超過した分は次回更新日に請求され、OFF にしても OFF までの超過分は次回更新日に請求されます。<br>
+          ※アップグレードは即時反映され、契約更新日はアップグレード日に更新されます。未使用分の通信量がある場合は日割り相当で返金されます。<br>
+          ※ダウングレードは次回更新日から反映されます。<br>
+          ※解約後は次回更新日まで現在のプランを利用でき、更新日以降はトライアル扱いとなります。<br>
           ※銀行振込の場合は、入金確認後に反映されるため、利用開始まで時間がかかる場合があります。
         </p>
       </section>
 
       <section id="plan-cards-section" class="plan-cards">
-        <h2>プラン変更</h2>
+        <h2 id="plan-section-title">プラン選択</h2>
         <p id="plan-change-note" class="renew-hint" style="margin: 0 0 0.75rem; opacity: 0.9;">
-          ※すでに契約中の方は、この下の「プラン変更・解約」からお手続きください（複数契約の防止のため）。
+          ※ご利用にはライト・スタンダード・プロのいずれかへのご契約が必要です。月間通信量の上限を超えた場合のみ、下の「オンデマンド利用枠」で超過分の利用を選択できます（¥3 / MB・後払い）。
         </p>
         <div class="plan-grid">
           <div class="plan-card">
@@ -145,18 +148,13 @@
             <p class="plan-price">¥5,000/月</p>
             <button class="plan-btn" data-plan="pro" data-price="price_1TDKJFRouxrLYVHVbT3Qah8C">選択</button>
           </div>
-          <div class="plan-card plan-card-ondemand">
-            <h3>従量課金</h3>
-            <p class="plan-price">¥3 / MB</p>
-            <button class="plan-btn" data-plan="ondemand" data-price="price_1TI2W1RouxrLYVHVTy7gDiH8">選択</button>
-          </div>
         </div>
       </section>
 
       <section class="account-actions">
         <button id="logout-btn" class="btn-secondary" type="button">ログアウト</button>
-        <button id="cancel-subscription-btn" class="btn-secondary" type="button">プラン変更・解約</button>
-        <button id="toggle-ondemand-btn" class="btn-secondary" type="button" style="display:none;">従量課金を有効にする</button>
+        <button id="cancel-subscription-btn" class="btn-secondary" type="button">解約</button>
+        <button id="toggle-ondemand-btn" class="btn-secondary" type="button" style="display:none;">オンデマンド利用枠を有効にする</button>
         <button id="delete-account-btn" class="btn-danger" type="button">アカウントを削除</button>
       </section>
 
@@ -164,7 +162,7 @@
       <div id="ondemand-confirm-backdrop" class="modal-backdrop" style="display:none;"></div>
       <div id="ondemand-confirm-modal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="ondemand-confirm-title">
         <div class="modal-card" style="border-color: rgba(99, 102, 241, 0.25);">
-          <h3 id="ondemand-confirm-title" style="color: var(--text-primary);">従量課金の切り替え確認</h3>
+          <h3 id="ondemand-confirm-title" style="color: var(--text-primary);">オンデマンド利用枠の切り替え確認</h3>
           <div id="ondemand-confirm-body">
             <p id="ondemand-confirm-message" style="white-space: pre-line;"></p>
             <div class="modal-actions">
