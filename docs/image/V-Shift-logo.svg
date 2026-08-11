@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 312.312 221.462" width="100%" height="100%">
+  <defs>
+    <linearGradient id="iconValley1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284C7"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="iconValley2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <linearGradient id="iconValley3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7DD3FC"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <filter id="iconValleyGlow" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0284C7" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#iconValleyGlow)" transform="scale(1.95)">
+    <path d="M 0 16.85 L 82.78 0 L 160.16 44.92 L 83.35 62.29 Z" fill="url(#iconValley1)"/>
+    <path d="M 83.35 62.29 L 160.16 44.92 L 93.99 101.28 L 55.14 97.96 Z" fill="url(#iconValley2)"/>
+    <path d="M 55.14 97.96 L 72.84 113.57 L 93.99 101.28 L 83.35 62.29 Z" fill="url(#iconValley3)" opacity="0.95"/>
+  </g>
+</svg>

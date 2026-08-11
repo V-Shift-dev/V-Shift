@@ -10,15 +10,10 @@
 <body>
   <nav>
     <div class="container">
-      <div class="logo"><a href="index.html">V-Shift</a></div>
-      <ul>
-        <li><a href="index.html">トップ</a></li>
-        <li id="nav-mypage-item"><a href="mypage.html">マイページ</a></li>
-      </ul>
+      <div class="logo"><a class="logo-link" href="index.html">V-Shift</a></div>
       <div class="nav-right">
         <div id="nav-auth-buttons" class="nav-auth-buttons">
-          <a class="nav-btn" href="mypage.html#login">ログイン</a>
-          <a class="nav-btn nav-btn-primary" href="mypage.html#signup">サインアップ</a>
+          <a class="nav-btn nav-btn-primary" href="mypage.html#login">ログイン</a>
         </div>
         <div id="nav-account" class="nav-account" style="display:none;">
           <button id="nav-account-btn" class="nav-account-btn" type="button">
@@ -34,30 +29,57 @@
   </nav>
 
   <main class="mypage-main container">
-    <!-- 未ログイン時: ログイン・アカウント作成 -->
+    <!-- 未ログイン時: OAuth ログイン / アカウント作成 / 非推奨メールログイン -->
     <div id="auth-section" class="auth-section">
-      <div class="auth-card">
+      <div id="oauth-login-card" class="auth-card">
         <h1>ログイン</h1>
-        <p class="auth-desc">V-Shift アプリと同じアカウントでログインしてください。</p>
+        <p class="auth-desc">V-Shift アプリと同じ Google / Microsoft アカウントでログインしてください。</p>
+        <div class="oauth-buttons">
+          <button type="button" id="google-login-btn" class="oauth-btn oauth-btn-google">
+            <span class="oauth-icon oauth-icon-google" aria-hidden="true"></span>
+            Google でログイン
+          </button>
+          <button type="button" id="microsoft-login-btn" class="oauth-btn oauth-btn-microsoft">
+            <span class="oauth-icon oauth-icon-microsoft" aria-hidden="true"></span>
+            Microsoft でログイン
+          </button>
+          <button type="button" id="show-email-login-btn" class="oauth-btn oauth-btn-deprecated">
+            メール・パスワードでログイン（非推奨）
+          </button>
+        </div>
+        <p class="auth-error" id="auth-error"></p>
+        <p id="auth-loading" class="auth-loading" style="display:none;">ログイン中…</p>
+        <button type="button" id="show-create-account-btn" class="btn-secondary auth-create-btn">アカウントを作成</button>
+      </div>
+
+      <div id="email-login-card" class="auth-card" style="display:none;">
+        <h1>メール・パスワードでログイン</h1>
+        <p class="auth-desc auth-desc-deprecated">非推奨のログイン方法です。可能な限り Google または Microsoft でのログインをご利用ください。</p>
+        <p class="auth-switch"><a href="#" id="back-to-oauth-login">← ログイン方法の選択に戻る</a></p>
         <form id="login-form">
           <input type="email" id="login-email" placeholder="メールアドレス" required autocomplete="email">
           <input type="password" id="login-password" placeholder="パスワード" required autocomplete="current-password">
           <button type="submit" id="login-btn">ログイン</button>
         </form>
-        <p class="auth-error" id="auth-error"></p>
-        <p class="auth-switch">アカウントをお持ちでない方は <a href="#" id="show-signup">新規作成</a></p>
+        <p class="auth-error" id="email-auth-error"></p>
       </div>
 
-      <div id="signup-card" class="auth-card" style="display:none;">
+      <div id="create-account-card" class="auth-card" style="display:none;">
         <h1>アカウント作成</h1>
-        <form id="signup-form">
-          <input type="email" id="signup-email" placeholder="メールアドレス" required autocomplete="email">
-          <input type="password" id="signup-password" placeholder="パスワード（6文字以上）" required minlength="6" autocomplete="new-password">
-          <input type="text" id="signup-displayname" placeholder="表示名（任意）" autocomplete="name">
-          <button type="submit" id="signup-btn">作成</button>
-        </form>
-        <p class="auth-error" id="signup-error"></p>
-        <p class="auth-switch">すでにアカウントをお持ちの方は <a href="#" id="show-login">ログイン</a></p>
+        <p class="auth-desc">Google または Microsoft アカウントで新規登録できます。</p>
+        <div class="oauth-buttons">
+          <button type="button" id="google-create-btn" class="oauth-btn oauth-btn-google">
+            <span class="oauth-icon oauth-icon-google" aria-hidden="true"></span>
+            Google でアカウント作成
+          </button>
+          <button type="button" id="microsoft-create-btn" class="oauth-btn oauth-btn-microsoft">
+            <span class="oauth-icon oauth-icon-microsoft" aria-hidden="true"></span>
+            Microsoft でアカウント作成
+          </button>
+        </div>
+        <p class="auth-error" id="create-auth-error"></p>
+        <p id="create-loading" class="auth-loading" style="display:none;">アカウント作成中…</p>
+        <button type="button" id="back-to-login-from-create" class="btn-secondary auth-create-btn">ログインに戻る</button>
       </div>
     </div>
 
@@ -110,52 +132,59 @@
           <p id="renewed-at"><strong>契約更新日:</strong> <span id="renewed-at-value">---</span></p>
           <div id="cancel-status" class="ondemand-status" style="display:none;"></div>
           <div id="ondemand-status" class="ondemand-status" style="display:none;"></div>
+          <p style="margin-top: 0.75rem;">
+            <button type="button" id="sync-license-btn" class="btn-secondary" style="max-width: 280px;">
+              契約情報を再取得
+            </button>
+          </p>
         </div>
         <p class="renew-hint" style="margin-top: 0.75rem; opacity: 0.85;">
-          ※解約（サブスク停止）はこのページからお手続きできます。解約手続き後も<strong>契約期間満了（次回更新日）までは</strong>利用できます。<br>
-          ※契約期間満了（次回更新日）以降は利用できなくなり、Firebase 上の関連データはそこから <strong>30 日間</strong>保持されたのち削除されます（ローカルPCのデータは残ります）。<br>
+          ※解約（サブスク停止）はこのページからお手続きできます。解約手続き後も<strong>契約期間満了（次回更新日）までは</strong>利用できます。更新日以降は<strong>トライアル扱い</strong>となります。<br>
+          ※契約期間満了（次回更新日）以降、Firebase 上の関連データはそこから <strong>30 日間</strong>保持されたのち削除されます（ローカルPCのデータは残ります）。<br>
           ※ローカルのデータを削除しない限り、再度契約すればデータは復旧可能です。<br>
-          ※従量課金（オンデマンド）は<strong>後払い</strong>です。ON の間に上限を超えて利用した分は、次回更新日に請求されます。OFF に戻しても、OFF までに発生した超過分は次回更新日に請求されます。<br>
+          ※オンデマンド利用枠は、ライト・スタンダード・プロのいずれかのプラン契約中にマイページから有効化できます（<strong>後払い</strong>・¥3/MB）。ON にしたら手動で OFF にするまで有効です。各更新日の請求では、プランに含まれる通信量を使い切った後の超過分のみが加算されます。<br>
+          ※アップグレードは即時反映され、契約更新日はアップグレード日に更新されます。未使用分の通信量がある場合は日割り相当で返金されます。<br>
+          ※ダウングレードは次回更新日から反映されます。<br>
+          ※解約後は次回更新日まで現在のプランを利用でき、更新日以降はトライアル扱いとなります。<br>
           ※銀行振込の場合は、入金確認後に反映されるため、利用開始まで時間がかかる場合があります。
         </p>
       </section>
 
       <section id="plan-cards-section" class="plan-cards">
-        <h2>プラン変更</h2>
+        <h2 id="plan-section-title">プラン選択</h2>
+        <p id="plan-account-email" class="renew-hint" style="margin: 0 0 0.75rem; opacity: 0.95;">
+          ログイン中: <strong id="plan-account-email-value">---</strong>
+        </p>
         <p id="plan-change-note" class="renew-hint" style="margin: 0 0 0.75rem; opacity: 0.9;">
-          ※すでに契約中の方は、この下の「プラン変更・解約」からお手続きください（複数契約の防止のため）。
+          ※ご利用にはライト・スタンダード・プロのいずれかへのご契約が必要です。オンデマンド利用枠（¥3 / MB・後払い）は有料プラン契約中にマイページから有効/無効を切り替えられます。<br>
+          ※プラン変更・決済は<strong>上記ログイン中のアカウント</strong>に適用されます。別アカウントで契約する場合は一度ログアウトしてください。
         </p>
         <div class="plan-grid">
           <div class="plan-card">
             <h3>ライト</h3>
             <p class="plan-desc">300 MB/月</p>
             <p class="plan-price">¥1,000/月</p>
-            <button class="plan-btn" data-price="price_1TCgJGRouxrLYVHVZHGt20Cm">選択</button>
+            <button class="plan-btn" data-plan="lite" data-price="price_1TCgJGRouxrLYVHVZHGt20Cm">選択</button>
           </div>
           <div class="plan-card">
             <h3>スタンダード</h3>
             <p class="plan-desc">1 GB/月</p>
             <p class="plan-price">¥3,000/月</p>
-            <button class="plan-btn" data-price="price_1TCgKHRouxrLYVHVj33Nybn4">選択</button>
+            <button class="plan-btn" data-plan="standard" data-price="price_1TCgKHRouxrLYVHVj33Nybn4">選択</button>
           </div>
           <div class="plan-card">
             <h3>プロ</h3>
             <p class="plan-desc">1.5 GB/月</p>
             <p class="plan-price">¥5,000/月</p>
-            <button class="plan-btn" data-price="price_1TDKJFRouxrLYVHVbT3Qah8C">選択</button>
-          </div>
-          <div class="plan-card plan-card-ondemand">
-            <h3>従量課金</h3>
-            <p class="plan-price">¥3 / MB</p>
-            <button class="plan-btn" data-price="price_1TI2W1RouxrLYVHVTy7gDiH8">選択</button>
+            <button class="plan-btn" data-plan="pro" data-price="price_1TDKJFRouxrLYVHVbT3Qah8C">選択</button>
           </div>
         </div>
       </section>
 
       <section class="account-actions">
         <button id="logout-btn" class="btn-secondary" type="button">ログアウト</button>
-        <button id="cancel-subscription-btn" class="btn-secondary" type="button">プラン変更・解約</button>
-        <button id="toggle-ondemand-btn" class="btn-secondary" type="button" style="display:none;">従量課金を有効にする</button>
+        <button id="cancel-subscription-btn" class="btn-secondary" type="button">解約</button>
+        <button id="toggle-ondemand-btn" class="btn-secondary" type="button" style="display:none;">オンデマンド利用枠を有効にする</button>
         <button id="delete-account-btn" class="btn-danger" type="button">アカウントを削除</button>
       </section>
 
@@ -163,7 +192,7 @@
       <div id="ondemand-confirm-backdrop" class="modal-backdrop" style="display:none;"></div>
       <div id="ondemand-confirm-modal" class="modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="ondemand-confirm-title">
         <div class="modal-card" style="border-color: rgba(99, 102, 241, 0.25);">
-          <h3 id="ondemand-confirm-title" style="color: var(--text-primary);">従量課金の切り替え確認</h3>
+          <h3 id="ondemand-confirm-title" style="color: var(--text-primary);">オンデマンド利用枠の切り替え確認</h3>
           <div id="ondemand-confirm-body">
             <p id="ondemand-confirm-message" style="white-space: pre-line;"></p>
             <div class="modal-actions">
@@ -181,8 +210,10 @@
           <div id="delete-modal-body">
             <p>削除すると、アカウントは削除予約状態になり、<strong>その場で解約（サブスク停止）</strong>されます。</p>
             <p>Firebase 上のデータは <strong>30日後に削除</strong>されます（復活できるのは30日以内のみ）。</p>
-            <p>パスワードを入力し、同意にチェックを入れてください。</p>
-            <input type="password" id="delete-password" placeholder="パスワード" autocomplete="current-password">
+            <p id="delete-reauth-hint">本人確認のため、再度ログインしてください。</p>
+            <div id="delete-password-row" style="display:none;">
+              <input type="password" id="delete-password" placeholder="パスワード" autocomplete="current-password">
+            </div>
             <label class="checkbox-line"><input type="checkbox" id="delete-agree"> すべてのデータが消去されることに同意する</label>
             <p id="delete-error" class="auth-error" style="margin-top:0.5rem;"></p>
             <div class="modal-actions">
@@ -193,6 +224,54 @@
           <div id="delete-progress" class="modal-progress" style="display:none;">
             <div class="spinner" aria-hidden="true"></div>
             <div>削除しています…（数秒かかる場合があります）</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- アカウント移行（メール＋パスワード → Google / Microsoft） -->
+      <div id="migration-backdrop" class="modal-backdrop migration-backdrop" style="display:none;"></div>
+      <div id="migration-modal" class="modal migration-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="migration-modal-title">
+        <div class="modal-card migration-card">
+          <h3 id="migration-modal-title">Google / Microsoft ログインへの移行</h3>
+          <p class="migration-desc">
+            セキュリティ強化のため、メール＋パスワードログインから Google または Microsoft ログインへの移行が必要です。
+            移行が完了するまでマイページの機能をご利用いただけません。
+          </p>
+
+          <div class="migration-box">
+            <div class="migration-box-title">引き継ぎ元（現在のアカウント）</div>
+            <div id="migration-source-email" class="migration-box-value">---</div>
+          </div>
+
+          <div class="migration-section">
+            <div class="migration-box-title">引き継ぎ先アカウント</div>
+            <p class="migration-hint">Google または Microsoft でサインインし、今後利用するアカウントを登録してください。</p>
+            <div class="oauth-buttons oauth-buttons-inline">
+              <button type="button" id="migration-google-btn" class="oauth-btn oauth-btn-google">
+                <span class="oauth-icon oauth-icon-google" aria-hidden="true"></span>
+                Google でサインイン
+              </button>
+              <button type="button" id="migration-microsoft-btn" class="oauth-btn oauth-btn-microsoft">
+                <span class="oauth-icon oauth-icon-microsoft" aria-hidden="true"></span>
+                Microsoft でサインイン
+              </button>
+            </div>
+          </div>
+
+          <div id="migration-target-box" class="migration-box" style="display:none;">
+            <div class="migration-box-title">引き継ぎ先（移行後に利用するアカウント）</div>
+            <div id="migration-target-summary" class="migration-box-value">---</div>
+          </div>
+
+          <p id="migration-status" class="migration-status"></p>
+          <p id="migration-error" class="auth-error"></p>
+
+          <div class="modal-actions migration-actions">
+            <button id="migration-execute-btn" class="btn-secondary" type="button" disabled>移行を実行</button>
+          </div>
+          <div id="migration-progress" class="modal-progress" style="display:none;">
+            <div class="spinner" aria-hidden="true"></div>
+            <div>データを移行しています…</div>
           </div>
         </div>
       </div>

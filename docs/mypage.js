@@ -1,18 +1,19 @@
 /**
  * V-Shift マイページ - Firebase Auth / RTDB / Cloud Functions 連携
- * Firebase プロジェクト: RTDB は v-shift、Auth はアプリと同じ設定を使用。
- * ログインできない場合は authDomain/projectId を shiftapp-ver30 に変更してください。
+ * Firebase プロジェクト: v-shift（Google / Microsoft OAuth ログイン）
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 import {
   getAuth,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
+  signInWithPopup,
   signOut,
   onAuthStateChanged,
-  updateProfile,
   reauthenticateWithCredential,
+  reauthenticateWithPopup,
   EmailAuthProvider,
+  GoogleAuthProvider,
+  OAuthProvider,
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 import {
   getDatabase,
@@ -41,15 +42,62 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 const functions = getFunctions(app, "us-central1");
 
+/** summary: Google OAuth プロバイダ（アカウント選択を促す） */
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
+
+/** summary: Microsoft OAuth プロバイダ */
+const microsoftProvider = new OAuthProvider("microsoft.com");
+microsoftProvider.setCustomParameters({ prompt: "select_account" });
+microsoftProvider.addScope("email");
+microsoftProvider.addScope("profile");
+
+const MIGRATION_COMPLETED_KEY = "vshift_completed_migrations_v1";
+const MIGRATED_EMAILS_KEY = "vshift_migrated_source_emails_v1";
+
+/** summary: アカウント移行ダイアログの一時状態 */
+let migrationPending = {
+  sourceUid: "",
+  sourceEmail: "",
+  targetSummary: "",
+  targetUid: "",
+  busy: false,
+};
+
+/** summary: 移行ダイアログ表示中か（マイページ操作ブロック用） */
+let migrationUiActive = false;
+
 const PLAN_NAMES = {
   trial: "トライアル",
   lite: "ライト",
   standard: "スタンダード",
   pro: "プロ",
-  ondemand: "従量課金",
 };
 
+/** summary: 有料プランの階層（アップグレード／ダウングレード判定用） */
+const PLAN_ORDER = {
+  lite: 1,
+  standard: 2,
+  pro: 3,
+};
+
+const PAID_BASE_PLANS = new Set(["lite", "standard", "pro"]);
+
+/**
+ * summary: オンデマンド利用枠が有効か（ondemandEnabled または旧 ondemandActiveUntil）
+ */
+function isOndemandEnabledLicense(license) {
+  if (!license) return false;
+  if (license.ondemandEnabled === true) return true;
+  const until = license.ondemandActiveUntil;
+  if (!until) return false;
+  const d = new Date(until);
+  return Number.isFinite(d.getTime()) && d.getTime() > Date.now();
+}
+
 const SIGNUP_RETRY_KEY = "vshift_signup_retry_v1";
+const PAYMENT_RETRY_KEY = "vshift_payment_retry_v1";
+const LICENSE_SYNC_ONCE_KEY = "vshift_license_sync_once_v1";
 let latestLicenseSnapshot = null;
 let ondemandConfirmResolver = null;
 
@@ -74,32 +122,378 @@ function formatFirebaseError(err) {
   return code ? `${message}\n(${code})` : message;
 }
 
-/** summary: Callable から取得した Stripe Price ID をプラン順の .plan-btn に反映する */
+/** summary: プロバイダ ID を表示名に変換する */
+function getProviderLabel(providerId) {
+  if (providerId === "google.com") return "Google";
+  if (providerId === "microsoft.com") return "Microsoft";
+  return "メール＋パスワード";
+}
+
+/** summary: メール＋パスワードのみのアカウントか判定する（WPF IsPasswordOnlyAccount 相当） */
+function isPasswordOnlyUser(user) {
+  if (!user) return false;
+  const providers = (user.providerData || []).map((p) => p.providerId).filter(Boolean);
+  if (providers.length === 0) return true;
+  return providers.length === 1 && providers[0] === "password";
+}
+
+/** summary: ユーザーがパスワード再認証に対応しているか */
+function userHasPasswordProvider(user) {
+  return (user?.providerData || []).some((p) => p.providerId === "password");
+}
+
+/** summary: 再認証用の OAuth プロバイダを取得する */
+function getOAuthReauthProvider(user) {
+  const providerId = (user?.providerData || []).find(
+    (p) => p.providerId === "google.com" || p.providerId === "microsoft.com"
+  )?.providerId;
+  if (providerId === "google.com") return googleProvider;
+  if (providerId === "microsoft.com") return microsoftProvider;
+  return null;
+}
+
+/** summary: 移行完了済み UID か（localStorage） */
+function isMigrationCompletedLocally(uid) {
+  if (!uid) return false;
+  try {
+    const raw = localStorage.getItem(MIGRATION_COMPLETED_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    return Boolean(map[uid]);
+  } catch {
+    return false;
+  }
+}
+
+/** summary: 移行完了を localStorage に記録する */
+function markMigrationCompletedLocally(sourceUid, targetUid, sourceEmail) {
+  try {
+    const raw = localStorage.getItem(MIGRATION_COMPLETED_KEY);
+    const map = raw ? JSON.parse(raw) : {};
+    map[sourceUid] = targetUid;
+    localStorage.setItem(MIGRATION_COMPLETED_KEY, JSON.stringify(map));
+
+    if (sourceEmail) {
+      const emailsRaw = localStorage.getItem(MIGRATED_EMAILS_KEY);
+      const emails = emailsRaw ? JSON.parse(emailsRaw) : [];
+      const normalized = sourceEmail.trim().toLowerCase();
+      if (!emails.includes(normalized)) {
+        emails.push(normalized);
+        localStorage.setItem(MIGRATED_EMAILS_KEY, JSON.stringify(emails));
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/** summary: 移行済みメールアドレスのパスワードログインを拒否する */
+function isPasswordLoginBlockedForEmail(email) {
+  if (!email) return false;
+  try {
+    const raw = localStorage.getItem(MIGRATED_EMAILS_KEY);
+    const emails = raw ? JSON.parse(raw) : [];
+    const normalized = email.trim().toLowerCase();
+    return emails.some((e) => String(e).toLowerCase() === normalized);
+  } catch {
+    return false;
+  }
+}
+
+/** summary: RTDB の AccountState で移行済みか確認する */
+async function fetchAccountMigratedToUid(uid) {
+  if (!uid) return "";
+  try {
+    const snap = await get(ref(db, `users/${uid}/AccountState`));
+    const val = snap.exists() ? snap.val() : null;
+    return val?.migratedToUid ? String(val.migratedToUid) : "";
+  } catch {
+    return "";
+  }
+}
+
+/** summary: 未ログイン時の認証カード表示を切り替える */
+function showAuthPanel(panel) {
+  const panels = {
+    oauth: document.getElementById("oauth-login-card"),
+    email: document.getElementById("email-login-card"),
+    create: document.getElementById("create-account-card"),
+  };
+  Object.entries(panels).forEach(([key, el]) => {
+    if (el) el.style.display = key === panel ? "block" : "none";
+  });
+}
+
+/** summary: OAuth ログイン／アカウント作成の共通処理 */
+async function signInWithOAuthProvider(provider, { isCreate = false } = {}) {
+  const errEl = document.getElementById(isCreate ? "create-auth-error" : "auth-error");
+  const loadingEl = document.getElementById(isCreate ? "create-loading" : "auth-loading");
+  if (errEl) errEl.textContent = "";
+  if (loadingEl) loadingEl.style.display = "block";
+  try {
+    if (isCreate) markSignupRetryStart();
+    await signInWithPopup(auth, provider);
+  } catch (err) {
+    if (err?.code === "auth/popup-closed-by-user") return;
+    if (errEl) errEl.textContent = formatFirebaseError(err);
+    throw err;
+  } finally {
+    if (loadingEl) loadingEl.style.display = "none";
+  }
+}
+
+/** summary: 移行ダイアログの表示状態を更新する */
+function updateMigrationUi() {
+  const backdrop = document.getElementById("migration-backdrop");
+  const modal = document.getElementById("migration-modal");
+  const targetBox = document.getElementById("migration-target-box");
+  const targetSummary = document.getElementById("migration-target-summary");
+  const statusEl = document.getElementById("migration-status");
+  const errorEl = document.getElementById("migration-error");
+  const executeBtn = document.getElementById("migration-execute-btn");
+  const hasTarget = Boolean(migrationPending.targetUid);
+
+  if (targetBox) targetBox.style.display = hasTarget ? "block" : "none";
+  if (targetSummary && hasTarget) targetSummary.textContent = migrationPending.targetSummary;
+  if (statusEl) {
+    statusEl.textContent = hasTarget
+      ? "内容を確認して「移行を実行」を押してください。"
+      : "";
+  }
+  if (executeBtn) executeBtn.disabled = migrationPending.busy || !hasTarget;
+  if (backdrop) backdrop.style.display = migrationUiActive ? "block" : "none";
+  if (modal) modal.style.display = migrationUiActive ? "flex" : "none";
+  if (!migrationUiActive && errorEl) errorEl.textContent = "";
+}
+
+/** summary: 移行ダイアログを開く */
+function openMigrationModal(user) {
+  if (migrationUiActive && migrationPending.sourceUid === user.uid) {
+    updateMigrationUi();
+    return;
+  }
+  migrationPending = {
+    sourceUid: user.uid,
+    sourceEmail: user.email || "(メール未設定)",
+    targetSummary: "",
+    targetUid: "",
+    busy: false,
+  };
+  migrationUiActive = true;
+  const sourceEl = document.getElementById("migration-source-email");
+  if (sourceEl) sourceEl.textContent = migrationPending.sourceEmail;
+  updateMigrationUi();
+}
+
+/** summary: 移行ダイアログを閉じる */
+function closeMigrationModal() {
+  migrationUiActive = false;
+  migrationPending = {
+    sourceUid: "",
+    sourceEmail: "",
+    targetSummary: "",
+    targetUid: "",
+    busy: false,
+  };
+  updateMigrationUi();
+}
+
+/** summary: 引き継ぎ先 OAuth アカウントを登録する */
+async function signInMigrationTarget(provider) {
+  const errorEl = document.getElementById("migration-error");
+  const statusEl = document.getElementById("migration-status");
+  if (errorEl) errorEl.textContent = "";
+  if (statusEl) statusEl.textContent = "サインイン画面を開いています...";
+  migrationPending.busy = true;
+  updateMigrationUi();
+
+  const sourceUid = migrationPending.sourceUid;
+
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const targetUser = result.user;
+    if (targetUser.uid === sourceUid) {
+      throw new Error("引き継ぎ元と同じアカウントです。別の Google / Microsoft アカウントを選択してください。");
+    }
+    // 以降の UI 更新は onAuthStateChanged が担当
+  } catch (err) {
+    if (err?.code !== "auth/popup-closed-by-user" && errorEl) {
+      errorEl.textContent = formatFirebaseError(err);
+    }
+    if (statusEl) statusEl.textContent = "";
+  } finally {
+    migrationPending.busy = false;
+    updateMigrationUi();
+  }
+}
+
+/** summary: migrateAccountData を呼び出してアカウント移行を実行する */
+async function executeAccountMigration() {
+  const errorEl = document.getElementById("migration-error");
+  const progressEl = document.getElementById("migration-progress");
+  const executeBtn = document.getElementById("migration-execute-btn");
+  if (!migrationPending.sourceUid || !migrationPending.targetUid) return;
+
+  const confirmed = window.confirm(
+    `以下の内容でデータを移行します。\n\n引き継ぎ元: ${migrationPending.sourceEmail}\n引き継ぎ先: ${migrationPending.targetSummary}\n\n移行後は引き継ぎ先アカウントでご利用ください。`
+  );
+  if (!confirmed) return;
+
+  if (errorEl) errorEl.textContent = "";
+  migrationPending.busy = true;
+  if (executeBtn) executeBtn.disabled = true;
+  if (progressEl) progressEl.style.display = "flex";
+  updateMigrationUi();
+
+  try {
+    const fn = httpsCallable(functions, "migrateAccountData");
+    await fn({
+      sourceUid: migrationPending.sourceUid,
+      targetUid: migrationPending.targetUid,
+    });
+    markMigrationCompletedLocally(
+      migrationPending.sourceUid,
+      migrationPending.targetUid,
+      migrationPending.sourceEmail
+    );
+    closeMigrationModal();
+    location.reload();
+  } catch (err) {
+    if (errorEl) errorEl.textContent = `移行に失敗しました: ${formatFirebaseError(err)}`;
+  } finally {
+    migrationPending.busy = false;
+    if (progressEl) progressEl.style.display = "none";
+    updateMigrationUi();
+  }
+}
+
+/** summary: ログイン後に移行ダイアログが必要か判定する */
+async function shouldPromptAccountMigration(user) {
+  if (!user || !isPasswordOnlyUser(user)) return false;
+  if (isMigrationCompletedLocally(user.uid)) return false;
+  const migratedToUid = await fetchAccountMigratedToUid(user.uid);
+  if (migratedToUid) {
+    markMigrationCompletedLocally(user.uid, migratedToUid, user.email);
+    return false;
+  }
+  return true;
+}
+
+/** summary: マイページ本体の操作可否（移行中はブロック） */
+function setMypageBlocked(blocked) {
+  const section = document.getElementById("mypage-section");
+  if (!section) return;
+  section.classList.toggle("mypage-blocked", blocked);
+}
+
+/**
+ * summary: プラン選択ボタン（.plan-card 内の .plan-btn）のみを取得する
+ * <remarks>
+ * 「契約情報を再取得」など別用途ボタンを含めないこと。
+ * </remarks>
+ * <returns>プラン選択用ボタンの配列</returns>
+ */
+function getPlanSelectButtons() {
+  return Array.from(document.querySelectorAll(".plan-card .plan-btn"));
+}
+
+/**
+ * summary: Callable から取得した Stripe Price ID を data-plan に対応するボタンへ反映する
+ * <remarks>
+ * <list type="bullet">
+ * <item><description>data-plan（lite/standard/pro/ondemand）で紐付ける</description></item>
+ * <item><description>失敗時は HTML の data-price（本番 ID）のまま → テスト鍵では Checkout が失敗しうる</description></item>
+ * </list>
+ * </remarks>
+ */
 async function applyCheckoutPriceIdsToPlanButtons() {
-  const buttons = Array.from(document.querySelectorAll(".plan-btn"));
+  const buttons = getPlanSelectButtons();
   if (!buttons.length) return;
   try {
     const fn = httpsCallable(functions, "getCheckoutPriceIds");
     const { data } = await fn({});
-    const keys = ["lite", "standard", "pro", "ondemand"];
-    keys.forEach((key, i) => {
+    const keys = ["lite", "standard", "pro"];
+    keys.forEach((key) => {
       const id = data?.[key];
-      if (id && buttons[i]) buttons[i].dataset.price = String(id);
+      if (!id) return;
+      const btn = buttons.find((b) => b.dataset.plan === key);
+      if (btn) btn.dataset.price = String(id);
     });
   } catch (err) {
-    // 失敗時は HTML の data-price（本番 ID）のまま → テスト鍵では Checkout が失敗しうる
     console.error("[mypage] getCheckoutPriceIds failed; using HTML data-price defaults", err);
   }
 }
 
-/** summary: プラン選択ボタンに Checkout 用のクリックハンドラを付与する */
+/**
+ * summary: プラン選択ボタンの表示ラベルを決定する
+ * <remarks>
+ * <list type="bullet">
+ * <item><description>トライアル中は「選択」</description></item>
+ * <item><description>契約中プランは「契約中」（無効）</description></item>
+ * <item><description>上位プランは「アップグレード」、下位は「ダウングレード」</description></item>
+ * </list>
+ * </remarks>
+ */
+function getPlanButtonLabel(currentPlan, targetPlan) {
+  if (!PAID_BASE_PLANS.has(targetPlan)) return "選択";
+  if (currentPlan === "trial") return "選択";
+  if (currentPlan === targetPlan) return "契約中";
+  const currentOrder = PLAN_ORDER[currentPlan] || 0;
+  const targetOrder = PLAN_ORDER[targetPlan] || 0;
+  if (targetOrder > currentOrder) return "アップグレード";
+  if (targetOrder < currentOrder) return "ダウングレード";
+  return "選択";
+}
+
+/**
+ * summary: 契約状況に応じてプランカードのボタン表示を更新する
+ */
+function updatePlanSelectButtons(plan) {
+  const currentPlan = (plan || "trial").toLowerCase();
+  const buttons = getPlanSelectButtons();
+  const sectionTitle = document.getElementById("plan-section-title");
+  if (sectionTitle) {
+    sectionTitle.textContent = currentPlan === "trial" ? "プラン選択" : "プラン変更";
+  }
+
+  buttons.forEach((btn) => {
+    const key = (btn.dataset.plan || "").toLowerCase();
+    if (!PAID_BASE_PLANS.has(key)) return;
+
+    const isCurrent = PAID_BASE_PLANS.has(currentPlan) && key === currentPlan;
+    btn.textContent = getPlanButtonLabel(currentPlan, key);
+    btn.disabled = isCurrent;
+    btn.title = isCurrent ? "現在契約中のプランです" : "";
+    btn.classList.toggle("plan-btn-current", isCurrent);
+  });
+}
+
+/**
+ * summary: プラン選択ボタンに Checkout 用のクリックハンドラを付与する
+ * <remarks>
+ * priceId 未設定時も画面にエラーを出し、無反応に見えないようにする。
+ * </remarks>
+ */
 function attachPlanButtonHandlers() {
-  document.querySelectorAll(".plan-btn").forEach((btn) => {
+  getPlanSelectButtons().forEach((btn) => {
     btn.addEventListener("click", async () => {
       const priceId = btn.dataset.price;
-      if (!priceId) return;
+      if (!priceId) {
+        setPageError("プランの価格設定が取得できていません。ページを再読み込みしてから再度お試しください。");
+        return;
+      }
       btn.disabled = true;
       try {
+        const user = auth.currentUser;
+        const planLabel = btn.textContent || "プラン変更";
+        const email = user?.email || "（メール不明）";
+        const confirmed = window.confirm(
+          `以下のアカウントで${planLabel}します。\n\nログイン中: ${email}\n\n別アカウントで契約する場合はキャンセルし、ログアウトしてからやり直してください。`
+        );
+        if (!confirmed) {
+          updatePlanSelectButtons(latestLicenseSnapshot?.plan || "trial");
+          return;
+        }
+
         const createCheckout = httpsCallable(functions, "createCheckoutSession");
         const { data } = await createCheckout({ priceId });
         if (data?.url) {
@@ -110,7 +504,7 @@ function attachPlanButtonHandlers() {
       } catch (err) {
         setPageError(`プラン選択に失敗しました。\n${formatFirebaseError(err)}`);
       } finally {
-        btn.disabled = false;
+        updatePlanSelectButtons(latestLicenseSnapshot?.plan || "trial");
       }
     });
   });
@@ -225,18 +619,149 @@ function clearSignupRetryStart() {
   }
 }
 
-/** summary: RTDB からライセンスを単発で取得（user配下→root）する */
-async function fetchLicenseOnce(uid) {
-  const candidates = [`users/${uid}/License`, `licenses/${uid}`];
+/** summary: 決済完了直後のライセンス再試行トークンを開始する */
+function markPaymentRetryStart() {
+  try {
+    sessionStorage.setItem(PAYMENT_RETRY_KEY, String(Date.now()));
+  } catch {
+    // ignore
+  }
+}
+
+/** summary: 決済完了直後の再試行開始時刻（ms）を取得する */
+function getPaymentRetryStartMs() {
+  try {
+    const v = sessionStorage.getItem(PAYMENT_RETRY_KEY);
+    const n = v ? Number(v) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** summary: 決済完了直後の再試行トークンを消す */
+function clearPaymentRetryStart() {
+  try {
+    sessionStorage.removeItem(PAYMENT_RETRY_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** summary: plan など契約フィールドを持つライセンスかどうか */
+function isContractLicense(license) {
+  return Boolean(license && typeof license.plan === "string" && license.plan.length > 0);
+}
+
+/** summary: RTDB の permission_denied かどうか（licenses ルートは Web から読めない環境がある） */
+function isPermissionDeniedError(err) {
+  const code = err?.code ? String(err.code) : "";
+  const msg = err?.message ? String(err.message) : "";
+  return (
+    code === "PERMISSION_DENIED" ||
+    /permission_denied/i.test(msg)
+  );
+}
+
+/**
+ * summary: users/{uid}/License と licenses/{uid} をマージする（usedBytes は端末合算で別途取得）
+ */
+function mergeLicenseSnapshots(userScoped, rootScoped) {
+  const u =
+    userScoped && typeof userScoped === "object" && !Array.isArray(userScoped) ? userScoped : null;
+  const r =
+    rootScoped && typeof rootScoped === "object" && !Array.isArray(rootScoped) ? rootScoped : null;
+  if (!u && !r) return null;
+
+  const primary = isContractLicense(u) ? u : isContractLicense(r) ? r : u || r;
+  return { ...primary };
+}
+
+const TRIAL_PERIOD_KEY = "trial";
+
+/** summary: 請求期間キー（端末 acknowledgedRenewedAt 比較用） */
+function getBillingPeriodKey(license) {
+  const plan = (license?.plan || "trial").toLowerCase();
+  if (plan === "trial") return TRIAL_PERIOD_KEY;
+  return license?.renewedAt ?? "";
+}
+
+/** summary: 旧スキーマの usedBytes をフォールバック読取する */
+async function loadLegacyUsedBytes(uid) {
+  const candidates = [
+    `usage/${uid}/usedBytes`,
+    `users/${uid}/Usage/usedBytes`,
+    `users/${uid}/License/usedBytes`,
+    `licenses/${uid}/usedBytes`,
+  ];
   for (const path of candidates) {
     try {
       const snap = await get(ref(db, path));
-      if (snap.exists()) return snap.val();
+      const val = snap.val();
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      if (typeof val === "string" && val && !Number.isNaN(Number(val))) return Number(val);
     } catch {
-      // ignore and try next
+      // ignore
     }
   }
-  return null;
+  return 0;
+}
+
+/** summary: usage/{uid}/devices を合算して通信量を取得する */
+async function loadAggregatedUsedBytes(uid, license, devicesSnapshot) {
+  const periodKey = getBillingPeriodKey(license || { plan: "trial" });
+  let devices = devicesSnapshot;
+  if (devices === undefined) {
+    try {
+      const snap = await get(ref(db, `usage/${uid}/devices`));
+      devices = snap.exists() ? snap.val() : null;
+    } catch {
+      devices = null;
+    }
+  }
+  if (!devices || typeof devices !== "object") {
+    return loadLegacyUsedBytes(uid);
+  }
+  let total = 0;
+  for (const entry of Object.values(devices)) {
+    if (!entry || typeof entry !== "object") continue;
+    const ack = entry.acknowledgedRenewedAt ?? "";
+    if (ack !== periodKey) continue;
+    const used = Number(entry.usedBytes);
+    if (Number.isFinite(used)) total += used;
+  }
+  return total;
+}
+
+/** summary: ライセンスに合算 usedBytes を付与する */
+async function attachLicenseUsage(uid, license, devicesSnapshot) {
+  if (!license) return null;
+  const usedBytes = await loadAggregatedUsedBytes(uid, license, devicesSnapshot);
+  return { ...license, usedBytes };
+}
+
+/** summary: RTDB からライセンスを単発で取得（user 配下優先、必要時のみ licenses を試す）する */
+async function fetchLicenseOnce(uid) {
+  let userScoped = null;
+  let rootScoped = null;
+  try {
+    const snap = await get(ref(db, `users/${uid}/License`));
+    if (snap.exists()) userScoped = snap.val();
+  } catch {
+    // ignore
+  }
+  if (isContractLicense(userScoped)) {
+    return mergeLicenseSnapshots(userScoped, null);
+  }
+  try {
+    const snap = await get(ref(db, `licenses/${uid}`));
+    if (snap.exists()) rootScoped = snap.val();
+  } catch (err) {
+    if (!isPermissionDeniedError(err)) {
+      // ignore（ルール拒否は想定内）
+    }
+  }
+  return mergeLicenseSnapshots(userScoped, rootScoped);
 }
 
 /** summary: サインアップ直後だけライセンスを再試行して取得する（5秒後開始、3秒間隔、最大30秒） */
@@ -268,7 +793,7 @@ async function loadLicenseWithRetryAfterSignup(uid) {
     if (license) {
       clearSignupRetryStart();
       setLicenseLoading(false);
-      renderLicense(license);
+      renderLicense(await attachLicenseUsage(uid, license));
       return { handled: true, license };
     }
     await new Promise((r) => setTimeout(r, intervalMs));
@@ -280,25 +805,137 @@ async function loadLicenseWithRetryAfterSignup(uid) {
   return { handled: true, license: null };
 }
 
+/** summary: Stripe から契約情報を RTDB へ同期する（Webhook 待ちのフォールバック） */
+async function syncLicenseFromStripeCallable() {
+  try {
+    const fn = httpsCallable(functions, "syncSubscriptionLicense");
+    const { data } = await fn({});
+    return Boolean(data?.synced);
+  } catch (err) {
+    console.warn("[mypage] syncSubscriptionLicense failed", err);
+    return false;
+  }
+}
+
+/** summary: トライアル表示のままのとき、セッション1回だけ Stripe から契約同期を試す */
+async function maybeSyncLicenseOnceIfTrial(uid) {
+  try {
+    if (sessionStorage.getItem(LICENSE_SYNC_ONCE_KEY)) return;
+  } catch {
+    return;
+  }
+  const license = await fetchLicenseOnce(uid);
+  if (isContractLicense(license)) return;
+
+  const ok = await syncLicenseFromStripeCallable();
+  try {
+    sessionStorage.setItem(LICENSE_SYNC_ONCE_KEY, "1");
+  } catch {
+    // ignore
+  }
+  if (!ok) return;
+
+  const updated = await fetchLicenseOnce(uid);
+  if (isContractLicense(updated)) {
+    setPageError("");
+    renderLicense(await attachLicenseUsage(uid, updated));
+  }
+}
+
+/** summary: 「契約情報を再取得」ボタンのクリック処理 */
+async function handleSyncLicenseButtonClick() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const btn = document.getElementById("sync-license-btn");
+  const originalText = btn?.textContent || "";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "取得中…";
+  }
+  setPageError("");
+
+  try {
+    const ok = await syncLicenseFromStripeCallable();
+    const license = await fetchLicenseOnce(user.uid);
+    if (ok && isContractLicense(license)) {
+      renderLicense(await attachLicenseUsage(user.uid, license));
+      return;
+    }
+    setPageError(
+      "契約情報を取得できませんでした。お支払い直後の場合は数分待ってから再度お試しください。"
+    );
+    if (license) renderLicense(await attachLicenseUsage(user.uid, license));
+  } catch (err) {
+    setPageError(`契約情報の取得に失敗しました。\n${formatFirebaseError(err)}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  }
+}
+
+/** summary: 決済完了直後だけライセンスを再試行して取得する（即時開始、3秒間隔、最大60秒） */
+async function loadLicenseWithRetryAfterPayment(uid) {
+  const startMs = getPaymentRetryStartMs();
+  if (!startMs) return { handled: false };
+
+  const maxTotalMs = 60_000;
+  const intervalMs = 3_000;
+  const deadline = startMs + maxTotalMs;
+
+  if (Date.now() > deadline) {
+    clearPaymentRetryStart();
+    return { handled: false };
+  }
+
+  setLicenseLoading(true);
+  setPageError("");
+
+  await syncLicenseFromStripeCallable();
+
+  while (Date.now() <= deadline) {
+    const license = await fetchLicenseOnce(uid);
+    if (isContractLicense(license)) {
+      clearPaymentRetryStart();
+      setLicenseLoading(false);
+      renderLicense(license);
+      return { handled: true, license };
+    }
+    await syncLicenseFromStripeCallable();
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+
+  clearPaymentRetryStart();
+  setLicenseLoading(false);
+  setPageError(
+    "お支払いは完了していますが、契約情報の反映に時間がかかっています。数分後に再読み込みするか、反映されない場合はサポートへお問い合わせください。"
+  );
+  return { handled: true, license: null };
+}
+
 /** summary: ナビゲーション（ログイン状態）を切り替える */
 function renderNav(user) {
   const authButtons = document.getElementById("nav-auth-buttons");
   const account = document.getElementById("nav-account");
   const nameEl = document.getElementById("nav-account-name");
-  const mypageItem = document.getElementById("nav-mypage-item");
   const accountMenu = document.getElementById("nav-account-menu");
+  const planEmailEl = document.getElementById("plan-account-email-value");
 
-  if (!authButtons || !account || !nameEl || !mypageItem) return;
+  if (planEmailEl) {
+    planEmailEl.textContent = user?.email || "---";
+  }
+
+  if (!authButtons || !account || !nameEl) return;
 
   if (user) {
     authButtons.style.display = "none";
     account.style.display = "block";
-    mypageItem.style.display = "";
     nameEl.textContent = user.displayName || user.email || "---";
   } else {
     authButtons.style.display = "flex";
     account.style.display = "none";
-    mypageItem.style.display = "none";
     if (accountMenu) accountMenu.style.display = "none";
   }
 }
@@ -310,6 +947,7 @@ function showPaymentMessages() {
   if (params.get("payment") === "success") {
     paymentSuccess.style.display = "block";
     paymentCancel.style.display = "none";
+    markPaymentRetryStart();
     window.history.replaceState({}, "", location.pathname);
   } else if (params.get("payment") === "cancel") {
     paymentCancel.style.display = "block";
@@ -318,25 +956,9 @@ function showPaymentMessages() {
   }
 }
 
-/** summary: トライアル/未契約時の使用量を RTDB から可能な範囲で取得する */
+/** summary: トライアル/未契約時の使用量（端末合算）を RTDB から取得する */
 async function loadTrialUsedBytes(uid) {
-  const candidates = [
-    `usage/${uid}/usedBytes`,
-    `users/${uid}/Usage/usedBytes`,
-    `users/${uid}/License/usedBytes`,
-  ];
-
-  for (const path of candidates) {
-    try {
-      const snap = await get(ref(db, path));
-      const val = snap.val();
-      if (typeof val === "number" && Number.isFinite(val)) return val;
-      if (typeof val === "string" && val && !Number.isNaN(Number(val))) return Number(val);
-    } catch {
-      // ignore and try next
-    }
-  }
-  return 0;
+  return loadAggregatedUsedBytes(uid, { plan: "trial", renewedAt: null });
 }
 
 /** summary: 契約状況UIをレンダリングする */
@@ -349,9 +971,7 @@ function renderLicense(license) {
   const cancelAt = license?.cancelAt ? new Date(license.cancelAt) : null;
   const cancelledAt = license?.cancelledAt ? new Date(license.cancelledAt) : null;
   const dataDeleteAt = license?.dataDeleteAt ? new Date(license.dataDeleteAt) : null;
-  const ondemandUntil = license?.ondemandActiveUntil ? new Date(license.ondemandActiveUntil) : null;
-  const ondemandActive =
-    ondemandUntil && Number.isFinite(ondemandUntil.getTime()) && ondemandUntil.getTime() > Date.now();
+  const ondemandActive = isOndemandEnabledLicense(license);
   const limitReached = limitBytes > 0 && usedBytes >= limitBytes;
 
   // 詳細表示（初回レンダリングで表示）
@@ -401,7 +1021,7 @@ function renderLicense(license) {
         cancelAt && Number.isFinite(cancelAt.getTime())
           ? `（${cancelAt.toLocaleDateString("ja-JP")}まで利用可）`
           : "（次回更新日まで利用可）";
-      cancelStatus.textContent = `解約予約中 ${untilText}`;
+      cancelStatus.textContent = `解約予約中 ${untilText}（更新日以降はトライアル扱いとなります）`;
     } else {
       cancelStatus.style.display = "none";
       cancelStatus.textContent = "";
@@ -411,82 +1031,61 @@ function renderLicense(license) {
   const cancelBtn = document.getElementById("cancel-subscription-btn");
   if (cancelBtn) cancelBtn.style.display = plan === "trial" ? "none" : "";
 
-  // 従量課金 ON/OFF（アドオン）切替
+  // オンデマンド利用枠 ON/OFF（有料プラン契約中なら表示）
   updateOndemandToggleUi({ plan, ondemandActive });
 
-  // 既に契約中（trial以外）は、Checkoutで別サブスクを作らない。変更/解約はPortalへ誘導する。
   const planSection = document.getElementById("plan-cards-section");
-  const planChangeNote = document.getElementById("plan-change-note");
   if (planSection) {
-    planSection.style.display = plan === "trial" ? "" : "none";
-  }
-  if (planChangeNote) {
-    planChangeNote.style.display = plan === "trial" ? "none" : "";
+    planSection.style.display = "";
   }
 
-  // 現在契約中のプランは選択できないようにする（誤操作防止）
-  // ボタンは「trial」は常に有効、それ以外は現在プランと一致する priceId を無効化する。
-  try {
-    const buttons = Array.from(document.querySelectorAll(".plan-btn"));
-    // Price ID → planKey 逆引き（getCheckoutPriceIds が成功していれば data-price は現環境のID）
-    const priceToPlanKey = new Map();
-    buttons.forEach((b) => {
-      const priceId = b.dataset.price;
-      const label = (b.closest(".plan-card")?.querySelector("h3")?.textContent || "").trim();
-      if (!priceId) return;
-      // 表示名から planKey へ寄せる（最低限）
-      const key =
-        label === "ライト"
-          ? "lite"
-          : label === "スタンダード"
-            ? "standard"
-            : label === "プロ"
-              ? "pro"
-              : label === "従量課金"
-                ? "ondemand"
-                : null;
-      if (key) priceToPlanKey.set(priceId, key);
-    });
-
-    buttons.forEach((b) => {
-      const priceId = b.dataset.price;
-      const key = priceId ? priceToPlanKey.get(priceId) : null;
-      const isCurrent = plan !== "trial" && key && key === plan;
-      const shouldDisable = plan !== "trial" ? true : !!isCurrent;
-      b.disabled = shouldDisable;
-      b.title =
-        plan !== "trial"
-          ? "契約中の方は「プラン変更・解約」からお手続きください"
-          : isCurrent
-            ? "現在契約中のプランです"
-            : "";
-    });
-  } catch {
-    // ignore
-  }
+  updatePlanSelectButtons(plan);
 
   const ondemandStatus = document.getElementById("ondemand-status");
   if (ondemandStatus) {
-    const until = license?.ondemandActiveUntil;
-    if (until) {
-      const d = new Date(until);
-      const active = Number.isFinite(d.getTime()) && d.getTime() > Date.now();
-      ondemandStatus.style.display = "block";
-      ondemandStatus.textContent = active
-        ? `従量課金: 有効（${d.toLocaleDateString("ja-JP")}まで）`
-        : "従量課金: 期限切れ";
+    if (!PAID_BASE_PLANS.has(plan)) {
+      ondemandStatus.style.display = "none";
+      ondemandStatus.textContent = "";
     } else {
       ondemandStatus.style.display = "block";
-      ondemandStatus.textContent = "従量課金: 無効";
+      ondemandStatus.textContent = ondemandActive
+        ? "オンデマンド利用枠: 有効（手動で OFF にするまで継続）"
+        : "オンデマンド利用枠: 無効";
     }
   }
 }
 
-/** summary: RTDB のライセンス情報を監視し、許可されるパスへフォールバックする */
+/**
+ * summary: RTDB のライセンス情報を監視する
+ * Web ルールでは licenses/{uid} が読めないことが多いため users/{uid}/License を優先し、
+ * plan が揃っている間は licenses を購読しない（permission_denied を出さない）。
+ */
 function watchLicense(uid, onLicense, onError) {
-  // ルールで許可されやすい user 配下を優先（WPF と同じ方針）
   const userScopedRef = ref(db, `users/${uid}/License`);
+  const devicesRef = ref(db, `usage/${uid}/devices`);
   let unsubscribeRoot = null;
+  let latestUser = null;
+  let latestRoot = null;
+  let latestDevices = null;
+
+  const stopRootListener = () => {
+    if (!unsubscribeRoot) return;
+    try {
+      unsubscribeRoot();
+    } finally {
+      unsubscribeRoot = null;
+      latestRoot = null;
+    }
+  };
+
+  const emitMerged = async () => {
+    const merged = mergeLicenseSnapshots(latestUser, latestRoot);
+    if (!merged) {
+      onLicense(null);
+      return;
+    }
+    onLicense(await attachLicenseUsage(uid, merged, latestDevices));
+  };
 
   const ensureRootListener = () => {
     if (unsubscribeRoot) return;
@@ -494,26 +1093,44 @@ function watchLicense(uid, onLicense, onError) {
     unsubscribeRoot = onValue(
       rootRef,
       (snap) => {
-        onLicense(snap.exists() ? snap.val() : null);
+        latestRoot = snap.exists() ? snap.val() : null;
+        void emitMerged();
       },
       (err) => {
-        if (onError) onError(err);
+        if (!isPermissionDeniedError(err) && onError) onError(err);
       }
     );
   };
 
+  const unsubscribeDevices = onValue(
+    devicesRef,
+    (snap) => {
+      latestDevices = snap.exists() ? snap.val() : null;
+      void emitMerged();
+    },
+    (err) => {
+      if (!isPermissionDeniedError(err) && onError) onError(err);
+    }
+  );
+
   const unsubscribeUserScoped = onValue(
     userScopedRef,
     (snap) => {
-      if (snap.exists()) {
-        onLicense(snap.val());
+      latestUser = snap.exists() ? snap.val() : null;
+      if (!snap.exists()) {
+        ensureRootListener();
+        if (!unsubscribeRoot) void emitMerged();
         return;
       }
-      // user 配下に無ければ旧スキーマ(root)を試す
+      if (isContractLicense(latestUser)) {
+        stopRootListener();
+        void emitMerged();
+        return;
+      }
       ensureRootListener();
+      void emitMerged();
     },
     (err) => {
-      // user 配下が拒否/不在の環境向けに root も試しつつ、エラーは表示する
       ensureRootListener();
       if (onError) onError(err);
     }
@@ -522,14 +1139,14 @@ function watchLicense(uid, onLicense, onError) {
   return () => {
     try {
       unsubscribeUserScoped?.();
+      unsubscribeDevices?.();
     } finally {
-      unsubscribeRoot?.();
-      unsubscribeRoot = null;
+      stopRootListener();
     }
   };
 }
 
-/** summary: 従量課金トグルボタンの表示/文言を最新状態で更新する */
+/** summary: オンデマンド利用枠トグルボタンの表示/文言を最新状態で更新する */
 function updateOndemandToggleUi(state) {
   const toggleOndemandBtn = document.getElementById("toggle-ondemand-btn");
   if (!toggleOndemandBtn) return;
@@ -537,12 +1154,11 @@ function updateOndemandToggleUi(state) {
   const plan = state?.plan || "trial";
   const ondemandActive = state?.ondemandActive === true;
 
-  const isPaidBasePlan = plan === "lite" || plan === "standard" || plan === "pro";
-  // 新仕様（改）: 有料プラン契約中ならいつでもON/OFF可能。
-  // OFF にしても、ON中に使った超過分は次回更新時に後払いで請求される。
-  const canToggle = isPaidBasePlan;
+  const canToggle = PAID_BASE_PLANS.has(plan);
   toggleOndemandBtn.style.display = canToggle ? "" : "none";
-  toggleOndemandBtn.textContent = ondemandActive ? "従量課金を無効にする" : "従量課金を有効にする";
+  toggleOndemandBtn.textContent = ondemandActive
+    ? "オンデマンド利用枠を無効にする"
+    : "オンデマンド利用枠を有効にする";
 }
 
 /** summary: 従量課金の切り替え確認モーダルを開く（ユーザーの選択を Promise で返す） */
@@ -557,20 +1173,21 @@ function openOndemandConfirmModal(nextEnable) {
   // 多重起動防止（前回が残っている場合は否決）
   if (ondemandConfirmResolver) return Promise.resolve(false);
 
-  const title = nextEnable ? "従量課金を有効にしますか？" : "従量課金を無効にしますか？";
+  const title = nextEnable ? "オンデマンド利用枠を有効にしますか？" : "オンデマンド利用枠を無効にしますか？";
   const body = nextEnable
     ? [
         title,
         "",
-        "従量課金（オンデマンド）は後払いです。",
-        "ON の間に上限を超えて利用した分は、次回更新日に請求されます。",
+        "オンデマンド利用枠は後払いです（¥3 / MB）。",
+        "プランに含まれる通信量を使い切った後の超過分のみ、次回更新日の請求に加算されます。",
+        "ON の間は手動で OFF にするまで有効です。",
         "※誤操作防止のため、内容を確認のうえ「切り替える」を押してください。",
       ].join("\n")
     : [
         title,
         "",
         "OFF に戻しても、OFF にするまでに発生した超過分は次回更新日に請求されます。",
-        "※従量課金の新規発生は止まります。",
+        "※オンデマンド利用枠の新規発生は止まります。",
       ].join("\n");
 
   msg.textContent = body;
@@ -628,20 +1245,14 @@ async function handleToggleOndemandClick() {
   if (!btn) return;
 
   const plan = latestLicenseSnapshot?.plan || "trial";
-  const ondemandUntil = latestLicenseSnapshot?.ondemandActiveUntil
-    ? new Date(latestLicenseSnapshot.ondemandActiveUntil)
-    : null;
-  const ondemandActive =
-    ondemandUntil && Number.isFinite(ondemandUntil.getTime()) && ondemandUntil.getTime() > Date.now();
+  const ondemandActive = isOndemandEnabledLicense(latestLicenseSnapshot);
 
-  const isPaidBasePlan = plan === "lite" || plan === "standard" || plan === "pro";
-  if (!isPaidBasePlan) {
-    setPageError("従量課金の切り替えは、有料プラン契約中のみ操作できます。");
+  if (!PAID_BASE_PLANS.has(plan)) {
+    setPageError("オンデマンド利用枠の切り替えは、有料プラン契約中のみ操作できます。");
     updateOndemandToggleUi({ plan, ondemandActive });
     return;
   }
 
-  // 誤操作防止の確認
   const confirmed = await openOndemandConfirmModal(!ondemandActive);
   if (!confirmed) {
     updateOndemandToggleUi({ plan, ondemandActive });
@@ -659,7 +1270,7 @@ async function handleToggleOndemandClick() {
     // 反映はライセンス監視の更新を待つが、体感のため先にUIだけ戻す
     updateOndemandToggleUi({ plan, ondemandActive: !ondemandActive });
   } catch (err) {
-    setPageError(`従量課金の切り替えに失敗しました。\n${formatFirebaseError(err)}`);
+    setPageError(`オンデマンド利用枠の切り替えに失敗しました。\n${formatFirebaseError(err)}`);
     updateOndemandToggleUi({ plan, ondemandActive });
   } finally {
     btn.disabled = false;
@@ -678,10 +1289,35 @@ function attachOndemandToggleHandler() {
   });
 }
 
-onAuthStateChanged(auth, (user) => {
+onAuthStateChanged(auth, async (user) => {
   setPageError("");
   renderNav(user);
   if (user) {
+    // 移行フロー中: 引き継ぎ先 OAuth でサインイン済み → 移行実行待ち
+    if (
+      migrationUiActive &&
+      migrationPending.sourceUid &&
+      user.uid !== migrationPending.sourceUid
+    ) {
+      const providerId = user.providerData?.[0]?.providerId || "google.com";
+      migrationPending.targetUid = user.uid;
+      migrationPending.targetSummary = `${getProviderLabel(providerId)}: ${user.email || "(メール未設定)"}`;
+      showSection("mypage");
+      setMypageBlocked(true);
+      updateMigrationUi();
+      return;
+    }
+
+    const needsMigration = await shouldPromptAccountMigration(user);
+    if (needsMigration) {
+      showSection("mypage");
+      setMypageBlocked(true);
+      openMigrationModal(user);
+      return;
+    }
+
+    closeMigrationModal();
+    setMypageBlocked(false);
     showSection("mypage");
     showPaymentMessages();
 
@@ -698,8 +1334,82 @@ onAuthStateChanged(auth, (user) => {
       // ignore
     }
 
-    // サインアップ直後は、Functions側の初期書き込み待ちのためリトライで吸収する
-    loadLicenseWithRetryAfterSignup(user.uid).then((res) => {
+    void maybeSyncLicenseOnceIfTrial(user.uid);
+
+    document.getElementById("sync-license-btn")?.addEventListener("click", () => {
+      void handleSyncLicenseButtonClick();
+    });
+
+    // 決済直後は Webhook 反映待ちのためリトライで吸収する
+    loadLicenseWithRetryAfterPayment(user.uid).then((paymentRes) => {
+      if (paymentRes?.handled && paymentRes.license) {
+        watchLicense(
+          user.uid,
+          async (license) => {
+            if (license) {
+              renderLicense(license);
+              if (license?.accountDeleted === true) {
+                renderAccountDeletedState(true, license);
+              }
+              return;
+            }
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+          },
+          async () => {
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+            setPageError("契約情報の読み取りに失敗しました。");
+          }
+        );
+        return;
+      }
+      if (paymentRes?.handled) {
+        watchLicense(
+          user.uid,
+          async (license) => {
+            if (license) {
+              renderLicense(license);
+              if (license?.accountDeleted === true) {
+                renderAccountDeletedState(true, license);
+              }
+              return;
+            }
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+          },
+          async () => {
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+          }
+        );
+        return;
+      }
+
+      // サインアップ直後は、Functions側の初期書き込み待ちのためリトライで吸収する
+      return loadLicenseWithRetryAfterSignup(user.uid);
+    }).then((res) => {
+      if (!res) return;
       if (res?.handled && res.license) {
         // 取得できた後は通常監視へ
         watchLicense(
@@ -771,16 +1481,18 @@ onAuthStateChanged(auth, (user) => {
       );
     });
   } else {
+    closeMigrationModal();
+    setMypageBlocked(false);
     showSection("auth");
     closeDeleteModal();
     renderAccountDeletedState(false, null);
     const hash = (location.hash || "").toLowerCase();
-    if (hash === "#signup") {
-      document.querySelector(".auth-card").style.display = "none";
-      document.getElementById("signup-card").style.display = "block";
+    if (hash === "#create" || hash === "#signup") {
+      showAuthPanel("create");
+    } else if (hash === "#email") {
+      showAuthPanel("email");
     } else {
-      document.getElementById("signup-card").style.display = "none";
-      document.querySelector(".auth-card").style.display = "block";
+      showAuthPanel("oauth");
     }
   }
 });
@@ -814,56 +1526,73 @@ document.getElementById("restore-account-btn")?.addEventListener("click", async 
   }
 });
 
+document.getElementById("google-login-btn")?.addEventListener("click", () => {
+  void signInWithOAuthProvider(googleProvider);
+});
+document.getElementById("microsoft-login-btn")?.addEventListener("click", () => {
+  void signInWithOAuthProvider(microsoftProvider);
+});
+document.getElementById("google-create-btn")?.addEventListener("click", () => {
+  void signInWithOAuthProvider(googleProvider, { isCreate: true });
+});
+document.getElementById("microsoft-create-btn")?.addEventListener("click", () => {
+  void signInWithOAuthProvider(microsoftProvider, { isCreate: true });
+});
+document.getElementById("show-email-login-btn")?.addEventListener("click", () => {
+  showAuthPanel("email");
+});
+document.getElementById("back-to-oauth-login")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  showAuthPanel("oauth");
+});
+document.getElementById("show-create-account-btn")?.addEventListener("click", () => {
+  showAuthPanel("create");
+});
+document.getElementById("back-to-login-from-create")?.addEventListener("click", () => {
+  showAuthPanel("oauth");
+});
+
+document.getElementById("migration-google-btn")?.addEventListener("click", () => {
+  void signInMigrationTarget(googleProvider);
+});
+document.getElementById("migration-microsoft-btn")?.addEventListener("click", () => {
+  void signInMigrationTarget(microsoftProvider);
+});
+document.getElementById("migration-execute-btn")?.addEventListener("click", () => {
+  void executeAccountMigration();
+});
+
 document.getElementById("login-form")?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = document.getElementById("login-email").value;
   const password = document.getElementById("login-password").value;
   const btn = document.getElementById("login-btn");
-  const errEl = document.getElementById("auth-error");
+  const errEl = document.getElementById("email-auth-error");
   errEl.textContent = "";
+
+  if (isPasswordLoginBlockedForEmail(email)) {
+    errEl.textContent =
+      "このアカウントは Google / Microsoft ログインへ移行済みです。Google または Microsoft のボタンからログインしてください。";
+    return;
+  }
+
   btn.disabled = true;
   try {
-    await signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    const migratedToUid = await fetchAccountMigratedToUid(cred.user.uid);
+    if (migratedToUid) {
+      markMigrationCompletedLocally(cred.user.uid, migratedToUid, email);
+      await signOut(auth);
+      errEl.textContent =
+        "このアカウントは Google / Microsoft ログインへ移行済みです。Google または Microsoft のボタンからログインしてください。";
+      showAuthPanel("oauth");
+      return;
+    }
   } catch (err) {
     errEl.textContent = err.message || "ログインに失敗しました";
   } finally {
     btn.disabled = false;
   }
-});
-
-document.getElementById("signup-form")?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const email = document.getElementById("signup-email").value;
-  const password = document.getElementById("signup-password").value;
-  const displayName = document.getElementById("signup-displayname").value;
-  const btn = document.getElementById("signup-btn");
-  const errEl = document.getElementById("signup-error");
-  errEl.textContent = "";
-  btn.disabled = true;
-  try {
-    // サインアップ直後の初期ライセンス書き込み待ち対策（onAuthStateChanged より先にフラグを立てる）
-    markSignupRetryStart();
-    await createUserWithEmailAndPassword(auth, email, password);
-    if (auth.currentUser && displayName) {
-      await updateProfile(auth.currentUser, { displayName });
-    }
-  } catch (err) {
-    errEl.textContent = err.message || "アカウント作成に失敗しました";
-  } finally {
-    btn.disabled = false;
-  }
-});
-
-document.getElementById("show-signup")?.addEventListener("click", (e) => {
-  e.preventDefault();
-  document.querySelector(".auth-card").style.display = "none";
-  document.getElementById("signup-card").style.display = "block";
-});
-
-document.getElementById("show-login")?.addEventListener("click", (e) => {
-  e.preventDefault();
-  document.getElementById("signup-card").style.display = "none";
-  document.querySelector(".auth-card").style.display = "block";
 });
 
 initPlanPricingUi();
@@ -931,11 +1660,21 @@ function openDeleteModal() {
   const body = document.getElementById("delete-modal-body");
   const progress = document.getElementById("delete-progress");
   const pwd = document.getElementById("delete-password");
+  const pwdRow = document.getElementById("delete-password-row");
+  const reauthHint = document.getElementById("delete-reauth-hint");
   const agree = document.getElementById("delete-agree");
   const exec = document.getElementById("delete-execute");
   const err = document.getElementById("delete-error");
+  const user = auth.currentUser;
+  const hasPassword = userHasPasswordProvider(user);
 
   if (pwd) pwd.value = "";
+  if (pwdRow) pwdRow.style.display = hasPassword ? "block" : "none";
+  if (reauthHint) {
+    reauthHint.textContent = hasPassword
+      ? "パスワードを入力し、同意にチェックを入れてください。"
+      : "同意にチェックを入れ、削除時に Google / Microsoft で再認証します。";
+  }
   if (agree) agree.checked = false;
   if (exec) exec.disabled = true;
   if (err) err.textContent = "";
@@ -981,29 +1720,29 @@ document.getElementById("delete-modal-backdrop")?.addEventListener("click", () =
 document
   .getElementById("delete-agree")
   ?.addEventListener("change", (e) => {
-    const pwd = document.getElementById("delete-password").value;
-    document.getElementById("delete-execute").disabled =
-      !e.target.checked || !pwd;
+    updateDeleteExecuteEnabled(e.target.checked);
   });
 
 document
   .getElementById("delete-password")
   ?.addEventListener("input", () => {
     const agree = document.getElementById("delete-agree").checked;
-    const pwd = document.getElementById("delete-password").value;
-    document.getElementById("delete-execute").disabled = !agree || !pwd;
+    updateDeleteExecuteEnabled(agree);
   });
+
+/** summary: 削除ボタンの有効状態を更新する */
+function updateDeleteExecuteEnabled(agreed) {
+  const user = auth.currentUser;
+  const hasPassword = userHasPasswordProvider(user);
+  const pwd = document.getElementById("delete-password")?.value || "";
+  const exec = document.getElementById("delete-execute");
+  if (!exec) return;
+  exec.disabled = !agreed || (hasPassword && !pwd);
+}
 
 document.getElementById("delete-execute")?.addEventListener("click", async () => {
   const user = auth.currentUser;
-  if (!user?.email) return;
-
-  const password = document.getElementById("delete-password").value;
-  if (!password) {
-    const errEl = document.getElementById("delete-error");
-    if (errEl) errEl.textContent = "パスワードを入力してください";
-    return;
-  }
+  if (!user) return;
 
   const executeBtn = document.getElementById("delete-execute");
   executeBtn.disabled = true;
@@ -1013,8 +1752,17 @@ document.getElementById("delete-execute")?.addEventListener("click", async () =>
     if (body) body.style.display = "none";
     if (progress) progress.style.display = "flex";
 
-    const credential = EmailAuthProvider.credential(user.email, password);
-    await reauthenticateWithCredential(user, credential);
+    if (userHasPasswordProvider(user)) {
+      if (!user.email) throw new Error("メールアドレスが取得できません");
+      const password = document.getElementById("delete-password").value;
+      if (!password) throw new Error("パスワードを入力してください");
+      const credential = EmailAuthProvider.credential(user.email, password);
+      await reauthenticateWithCredential(user, credential);
+    } else {
+      const provider = getOAuthReauthProvider(user);
+      if (!provider) throw new Error("再認証に使用できるログイン方法が見つかりません");
+      await reauthenticateWithPopup(user, provider);
+    }
 
     const deleteAccountFn = httpsCallable(functions, "deleteAccount");
     await deleteAccountFn();
@@ -1032,4 +1780,4 @@ document.getElementById("delete-execute")?.addEventListener("click", async () =>
   }
 });
 
-// 従量課金プランは plan-btn（Checkout）経由で選択する
+// オンデマンド利用枠は有料プラン契約中にトグルで切り替える（単独プランとしては選択不可）

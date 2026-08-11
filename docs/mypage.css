@@ -80,6 +80,158 @@
   text-decoration: underline;
 }
 
+.auth-desc-deprecated {
+  color: #fbbf24;
+  opacity: 0.95;
+}
+
+.auth-loading {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0.5rem 0;
+  text-align: center;
+}
+
+.auth-create-btn {
+  width: 100%;
+  margin-top: 1rem;
+  max-width: none;
+}
+
+.oauth-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.oauth-buttons-inline {
+  margin-top: 0.5rem;
+}
+
+.oauth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #dadce0;
+  background: #ffffff;
+  color: #333333;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.oauth-btn:hover:not(:disabled) {
+  background: #f8f9fa;
+}
+
+.oauth-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.oauth-btn-deprecated {
+  background: #fafafa;
+  color: #888888;
+  border-color: #e0e0e0;
+  min-height: 48px;
+}
+
+.oauth-icon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.oauth-icon-google {
+  background:
+    linear-gradient(#4285f4 0 0) 0 0 / 50% 50% no-repeat,
+    linear-gradient(#34a853 0 0) 100% 0 / 50% 50% no-repeat,
+    linear-gradient(#fbbc05 0 0) 0 100% / 50% 50% no-repeat,
+    linear-gradient(#ea4335 0 0) 100% 100% / 50% 50% no-repeat;
+  border-radius: 2px;
+}
+
+.oauth-icon-microsoft {
+  background:
+    linear-gradient(#f25022 0 0) 0 0 / 50% 50% no-repeat,
+    linear-gradient(#7fba00 0 0) 100% 0 / 50% 50% no-repeat,
+    linear-gradient(#00a4ef 0 0) 0 100% / 50% 50% no-repeat,
+    linear-gradient(#ffb900 0 0) 100% 100% / 50% 50% no-repeat;
+}
+
+.mypage-blocked {
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.35;
+  filter: grayscale(0.2);
+}
+
+.migration-backdrop {
+  z-index: 1100;
+}
+
+.migration-modal {
+  z-index: 1101;
+}
+
+.migration-card {
+  max-width: 520px;
+  width: 100%;
+}
+
+.migration-desc {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  margin-bottom: 1rem;
+}
+
+.migration-box {
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 0.85rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.migration-box-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  margin-bottom: 0.35rem;
+}
+
+.migration-box-value {
+  font-size: 0.95rem;
+}
+
+.migration-section {
+  margin-bottom: 0.85rem;
+}
+
+.migration-hint {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0.25rem 0 0.5rem;
+}
+
+.migration-status {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  min-height: 1.2em;
+  margin: 0.25rem 0;
+}
+
+.migration-actions {
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
 .mypage-section h1 {
   margin-bottom: 1.5rem;
   font-size: 1.75rem;
@@ -246,13 +398,16 @@
   font-size: 0.95rem;
 }
 
-.plan-btn:hover {
+.plan-btn:hover:not(:disabled) {
   background: var(--primary-dark);
 }
 
-.plan-btn:disabled {
-  opacity: 0.6;
+.plan-btn:disabled,
+.plan-btn.plan-btn-current {
+  background: var(--base-elevated);
+  color: var(--text-accent);
   cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .account-actions {
