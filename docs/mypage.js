@@ -94,8 +94,32 @@ function isOndemandEnabledLicense(license) {
   const d = new Date(until);
   return Number.isFinite(d.getTime()) && d.getTime() > Date.now();
 }
+};
+
+/** summary: 有料プランの階層（アップグレード／ダウングレード判定用） */
+const PLAN_ORDER = {
+  lite: 1,
+  standard: 2,
+  pro: 3,
+};
+
+const PAID_BASE_PLANS = new Set(["lite", "standard", "pro"]);
+
+/**
+ * summary: オンデマンド利用枠が有効か（ondemandEnabled または旧 ondemandActiveUntil）
+ */
+function isOndemandEnabledLicense(license) {
+  if (!license) return false;
+  if (license.ondemandEnabled === true) return true;
+  const until = license.ondemandActiveUntil;
+  if (!until) return false;
+  const d = new Date(until);
+  return Number.isFinite(d.getTime()) && d.getTime() > Date.now();
+}
 
 const SIGNUP_RETRY_KEY = "vshift_signup_retry_v1";
+const PAYMENT_RETRY_KEY = "vshift_payment_retry_v1";
+const LICENSE_SYNC_ONCE_KEY = "vshift_license_sync_once_v1";
 const PAYMENT_RETRY_KEY = "vshift_payment_retry_v1";
 const LICENSE_SYNC_ONCE_KEY = "vshift_license_sync_once_v1";
 let latestLicenseSnapshot = null;
@@ -407,13 +431,19 @@ function getPlanSelectButtons() {
  */
 async function applyCheckoutPriceIdsToPlanButtons() {
   const buttons = getPlanSelectButtons();
+  const buttons = getPlanSelectButtons();
   if (!buttons.length) return;
   try {
     const fn = httpsCallable(functions, "getCheckoutPriceIds");
     const { data } = await fn({});
     const keys = ["lite", "standard", "pro"];
     keys.forEach((key) => {
+    const keys = ["lite", "standard", "pro"];
+    keys.forEach((key) => {
       const id = data?.[key];
+      if (!id) return;
+      const btn = buttons.find((b) => b.dataset.plan === key);
+      if (btn) btn.dataset.price = String(id);
       if (!id) return;
       const btn = buttons.find((b) => b.dataset.plan === key);
       if (btn) btn.dataset.price = String(id);
@@ -473,7 +503,58 @@ function updatePlanSelectButtons(plan) {
  * priceId 未設定時も画面にエラーを出し、無反応に見えないようにする。
  * </remarks>
  */
+/**
+ * summary: プラン選択ボタンの表示ラベルを決定する
+ * <remarks>
+ * <list type="bullet">
+ * <item><description>トライアル中は「選択」</description></item>
+ * <item><description>契約中プランは「契約中」（無効）</description></item>
+ * <item><description>上位プランは「アップグレード」、下位は「ダウングレード」</description></item>
+ * </list>
+ * </remarks>
+ */
+function getPlanButtonLabel(currentPlan, targetPlan) {
+  if (!PAID_BASE_PLANS.has(targetPlan)) return "選択";
+  if (currentPlan === "trial") return "選択";
+  if (currentPlan === targetPlan) return "契約中";
+  const currentOrder = PLAN_ORDER[currentPlan] || 0;
+  const targetOrder = PLAN_ORDER[targetPlan] || 0;
+  if (targetOrder > currentOrder) return "アップグレード";
+  if (targetOrder < currentOrder) return "ダウングレード";
+  return "選択";
+}
+
+/**
+ * summary: 契約状況に応じてプランカードのボタン表示を更新する
+ */
+function updatePlanSelectButtons(plan) {
+  const currentPlan = (plan || "trial").toLowerCase();
+  const buttons = getPlanSelectButtons();
+  const sectionTitle = document.getElementById("plan-section-title");
+  if (sectionTitle) {
+    sectionTitle.textContent = currentPlan === "trial" ? "プラン選択" : "プラン変更";
+  }
+
+  buttons.forEach((btn) => {
+    const key = (btn.dataset.plan || "").toLowerCase();
+    if (!PAID_BASE_PLANS.has(key)) return;
+
+    const isCurrent = PAID_BASE_PLANS.has(currentPlan) && key === currentPlan;
+    btn.textContent = getPlanButtonLabel(currentPlan, key);
+    btn.disabled = isCurrent;
+    btn.title = isCurrent ? "現在契約中のプランです" : "";
+    btn.classList.toggle("plan-btn-current", isCurrent);
+  });
+}
+
+/**
+ * summary: プラン選択ボタンに Checkout 用のクリックハンドラを付与する
+ * <remarks>
+ * priceId 未設定時も画面にエラーを出し、無反応に見えないようにする。
+ * </remarks>
+ */
 function attachPlanButtonHandlers() {
+  getPlanSelectButtons().forEach((btn) => {
   getPlanSelectButtons().forEach((btn) => {
     btn.addEventListener("click", async () => {
       const priceId = btn.dataset.price;
@@ -481,8 +562,23 @@ function attachPlanButtonHandlers() {
         setPageError("プランの価格設定が取得できていません。ページを再読み込みしてから再度お試しください。");
         return;
       }
+      if (!priceId) {
+        setPageError("プランの価格設定が取得できていません。ページを再読み込みしてから再度お試しください。");
+        return;
+      }
       btn.disabled = true;
       try {
+        const user = auth.currentUser;
+        const planLabel = btn.textContent || "プラン変更";
+        const email = user?.email || "（メール不明）";
+        const confirmed = window.confirm(
+          `以下のアカウントで${planLabel}します。\n\nログイン中: ${email}\n\n別アカウントで契約する場合はキャンセルし、ログアウトしてからやり直してください。`
+        );
+        if (!confirmed) {
+          updatePlanSelectButtons(latestLicenseSnapshot?.plan || "trial");
+          return;
+        }
+
         const user = auth.currentUser;
         const planLabel = btn.textContent || "プラン変更";
         const email = user?.email || "（メール不明）";
@@ -504,6 +600,7 @@ function attachPlanButtonHandlers() {
       } catch (err) {
         setPageError(`プラン選択に失敗しました。\n${formatFirebaseError(err)}`);
       } finally {
+        updatePlanSelectButtons(latestLicenseSnapshot?.plan || "trial");
         updatePlanSelectButtons(latestLicenseSnapshot?.plan || "trial");
       }
     });
@@ -694,13 +791,152 @@ async function loadLegacyUsedBytes(uid) {
     `users/${uid}/License/usedBytes`,
     `licenses/${uid}/usedBytes`,
   ];
+/** summary: 決済完了直後のライセンス再試行トークンを開始する */
+function markPaymentRetryStart() {
+  try {
+    sessionStorage.setItem(PAYMENT_RETRY_KEY, String(Date.now()));
+  } catch {
+    // ignore
+  }
+}
+
+/** summary: 決済完了直後の再試行開始時刻（ms）を取得する */
+function getPaymentRetryStartMs() {
+  try {
+    const v = sessionStorage.getItem(PAYMENT_RETRY_KEY);
+    const n = v ? Number(v) : 0;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** summary: 決済完了直後の再試行トークンを消す */
+function clearPaymentRetryStart() {
+  try {
+    sessionStorage.removeItem(PAYMENT_RETRY_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+/** summary: plan など契約フィールドを持つライセンスかどうか */
+function isContractLicense(license) {
+  return Boolean(license && typeof license.plan === "string" && license.plan.length > 0);
+}
+
+/** summary: RTDB の permission_denied かどうか（licenses ルートは Web から読めない環境がある） */
+function isPermissionDeniedError(err) {
+  const code = err?.code ? String(err.code) : "";
+  const msg = err?.message ? String(err.message) : "";
+  return (
+    code === "PERMISSION_DENIED" ||
+    /permission_denied/i.test(msg)
+  );
+}
+
+/**
+ * summary: users/{uid}/License と licenses/{uid} をマージする（usedBytes は端末合算で別途取得）
+ */
+function mergeLicenseSnapshots(userScoped, rootScoped) {
+  const u =
+    userScoped && typeof userScoped === "object" && !Array.isArray(userScoped) ? userScoped : null;
+  const r =
+    rootScoped && typeof rootScoped === "object" && !Array.isArray(rootScoped) ? rootScoped : null;
+  if (!u && !r) return null;
+
+  const primary = isContractLicense(u) ? u : isContractLicense(r) ? r : u || r;
+  return { ...primary };
+}
+
+const TRIAL_PERIOD_KEY = "trial";
+
+/** summary: 請求期間キー（端末 acknowledgedRenewedAt 比較用） */
+function getBillingPeriodKey(license) {
+  const plan = (license?.plan || "trial").toLowerCase();
+  if (plan === "trial") return TRIAL_PERIOD_KEY;
+  return license?.renewedAt ?? "";
+}
+
+/** summary: 旧スキーマの usedBytes をフォールバック読取する */
+async function loadLegacyUsedBytes(uid) {
+  const candidates = [
+    `usage/${uid}/usedBytes`,
+    `users/${uid}/Usage/usedBytes`,
+    `users/${uid}/License/usedBytes`,
+    `licenses/${uid}/usedBytes`,
+  ];
   for (const path of candidates) {
     try {
       const snap = await get(ref(db, path));
       const val = snap.val();
       if (typeof val === "number" && Number.isFinite(val)) return val;
       if (typeof val === "string" && val && !Number.isNaN(Number(val))) return Number(val);
+      const val = snap.val();
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      if (typeof val === "string" && val && !Number.isNaN(Number(val))) return Number(val);
     } catch {
+      // ignore
+    }
+  }
+  return 0;
+}
+
+/** summary: usage/{uid}/devices を合算して通信量を取得する */
+async function loadAggregatedUsedBytes(uid, license, devicesSnapshot) {
+  const periodKey = getBillingPeriodKey(license || { plan: "trial" });
+  let devices = devicesSnapshot;
+  if (devices === undefined) {
+    try {
+      const snap = await get(ref(db, `usage/${uid}/devices`));
+      devices = snap.exists() ? snap.val() : null;
+    } catch {
+      devices = null;
+    }
+  }
+  if (!devices || typeof devices !== "object") {
+    return loadLegacyUsedBytes(uid);
+  }
+  let total = 0;
+  for (const entry of Object.values(devices)) {
+    if (!entry || typeof entry !== "object") continue;
+    const ack = entry.acknowledgedRenewedAt ?? "";
+    if (ack !== periodKey) continue;
+    const used = Number(entry.usedBytes);
+    if (Number.isFinite(used)) total += used;
+  }
+  return total;
+}
+
+/** summary: ライセンスに合算 usedBytes を付与する */
+async function attachLicenseUsage(uid, license, devicesSnapshot) {
+  if (!license) return null;
+  const usedBytes = await loadAggregatedUsedBytes(uid, license, devicesSnapshot);
+  return { ...license, usedBytes };
+}
+
+/** summary: RTDB からライセンスを単発で取得（user 配下優先、必要時のみ licenses を試す）する */
+async function fetchLicenseOnce(uid) {
+  let userScoped = null;
+  let rootScoped = null;
+  try {
+    const snap = await get(ref(db, `users/${uid}/License`));
+    if (snap.exists()) userScoped = snap.val();
+  } catch {
+    // ignore
+  }
+  if (isContractLicense(userScoped)) {
+    return mergeLicenseSnapshots(userScoped, null);
+  }
+  try {
+    const snap = await get(ref(db, `licenses/${uid}`));
+    if (snap.exists()) rootScoped = snap.val();
+  } catch (err) {
+    if (!isPermissionDeniedError(err)) {
+      // ignore（ルール拒否は想定内）
+    }
+  }
+  return mergeLicenseSnapshots(userScoped, rootScoped);
       // ignore
     }
   }
@@ -794,6 +1030,7 @@ async function loadLicenseWithRetryAfterSignup(uid) {
       clearSignupRetryStart();
       setLicenseLoading(false);
       renderLicense(await attachLicenseUsage(uid, license));
+      renderLicense(await attachLicenseUsage(uid, license));
       return { handled: true, license };
     }
     await new Promise((r) => setTimeout(r, intervalMs));
@@ -802,6 +1039,116 @@ async function loadLicenseWithRetryAfterSignup(uid) {
   clearSignupRetryStart();
   setLicenseLoading(false);
   setPageError("契約状況が読み取れませんでした。");
+  return { handled: true, license: null };
+}
+
+/** summary: Stripe から契約情報を RTDB へ同期する（Webhook 待ちのフォールバック） */
+async function syncLicenseFromStripeCallable() {
+  try {
+    const fn = httpsCallable(functions, "syncSubscriptionLicense");
+    const { data } = await fn({});
+    return Boolean(data?.synced);
+  } catch (err) {
+    console.warn("[mypage] syncSubscriptionLicense failed", err);
+    return false;
+  }
+}
+
+/** summary: トライアル表示のままのとき、セッション1回だけ Stripe から契約同期を試す */
+async function maybeSyncLicenseOnceIfTrial(uid) {
+  try {
+    if (sessionStorage.getItem(LICENSE_SYNC_ONCE_KEY)) return;
+  } catch {
+    return;
+  }
+  const license = await fetchLicenseOnce(uid);
+  if (isContractLicense(license)) return;
+
+  const ok = await syncLicenseFromStripeCallable();
+  try {
+    sessionStorage.setItem(LICENSE_SYNC_ONCE_KEY, "1");
+  } catch {
+    // ignore
+  }
+  if (!ok) return;
+
+  const updated = await fetchLicenseOnce(uid);
+  if (isContractLicense(updated)) {
+    setPageError("");
+    renderLicense(await attachLicenseUsage(uid, updated));
+  }
+}
+
+/** summary: 「契約情報を再取得」ボタンのクリック処理 */
+async function handleSyncLicenseButtonClick() {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const btn = document.getElementById("sync-license-btn");
+  const originalText = btn?.textContent || "";
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "取得中…";
+  }
+  setPageError("");
+
+  try {
+    const ok = await syncLicenseFromStripeCallable();
+    const license = await fetchLicenseOnce(user.uid);
+    if (ok && isContractLicense(license)) {
+      renderLicense(await attachLicenseUsage(user.uid, license));
+      return;
+    }
+    setPageError(
+      "契約情報を取得できませんでした。お支払い直後の場合は数分待ってから再度お試しください。"
+    );
+    if (license) renderLicense(await attachLicenseUsage(user.uid, license));
+  } catch (err) {
+    setPageError(`契約情報の取得に失敗しました。\n${formatFirebaseError(err)}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  }
+}
+
+/** summary: 決済完了直後だけライセンスを再試行して取得する（即時開始、3秒間隔、最大60秒） */
+async function loadLicenseWithRetryAfterPayment(uid) {
+  const startMs = getPaymentRetryStartMs();
+  if (!startMs) return { handled: false };
+
+  const maxTotalMs = 60_000;
+  const intervalMs = 3_000;
+  const deadline = startMs + maxTotalMs;
+
+  if (Date.now() > deadline) {
+    clearPaymentRetryStart();
+    return { handled: false };
+  }
+
+  setLicenseLoading(true);
+  setPageError("");
+
+  await syncLicenseFromStripeCallable();
+
+  while (Date.now() <= deadline) {
+    const license = await fetchLicenseOnce(uid);
+    if (isContractLicense(license)) {
+      clearPaymentRetryStart();
+      setLicenseLoading(false);
+      renderLicense(license);
+      return { handled: true, license };
+    }
+    await syncLicenseFromStripeCallable();
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+
+  clearPaymentRetryStart();
+  setLicenseLoading(false);
+  setPageError(
+    "お支払いは完了していますが、契約情報の反映に時間がかかっています。数分後に再読み込みするか、反映されない場合はサポートへお問い合わせください。"
+  );
   return { handled: true, license: null };
 }
 
@@ -926,7 +1273,13 @@ function renderNav(user) {
   if (planEmailEl) {
     planEmailEl.textContent = user?.email || "---";
   }
+  const planEmailEl = document.getElementById("plan-account-email-value");
 
+  if (planEmailEl) {
+    planEmailEl.textContent = user?.email || "---";
+  }
+
+  if (!authButtons || !account || !nameEl) return;
   if (!authButtons || !account || !nameEl) return;
 
   if (user) {
@@ -948,6 +1301,7 @@ function showPaymentMessages() {
     paymentSuccess.style.display = "block";
     paymentCancel.style.display = "none";
     markPaymentRetryStart();
+    markPaymentRetryStart();
     window.history.replaceState({}, "", location.pathname);
   } else if (params.get("payment") === "cancel") {
     paymentCancel.style.display = "block";
@@ -957,7 +1311,9 @@ function showPaymentMessages() {
 }
 
 /** summary: トライアル/未契約時の使用量（端末合算）を RTDB から取得する */
+/** summary: トライアル/未契約時の使用量（端末合算）を RTDB から取得する */
 async function loadTrialUsedBytes(uid) {
+  return loadAggregatedUsedBytes(uid, { plan: "trial", renewedAt: null });
   return loadAggregatedUsedBytes(uid, { plan: "trial", renewedAt: null });
 }
 
@@ -971,6 +1327,7 @@ function renderLicense(license) {
   const cancelAt = license?.cancelAt ? new Date(license.cancelAt) : null;
   const cancelledAt = license?.cancelledAt ? new Date(license.cancelledAt) : null;
   const dataDeleteAt = license?.dataDeleteAt ? new Date(license.dataDeleteAt) : null;
+  const ondemandActive = isOndemandEnabledLicense(license);
   const ondemandActive = isOndemandEnabledLicense(license);
   const limitReached = limitBytes > 0 && usedBytes >= limitBytes;
 
@@ -1022,6 +1379,7 @@ function renderLicense(license) {
           ? `（${cancelAt.toLocaleDateString("ja-JP")}まで利用可）`
           : "（次回更新日まで利用可）";
       cancelStatus.textContent = `解約予約中 ${untilText}（更新日以降はトライアル扱いとなります）`;
+      cancelStatus.textContent = `解約予約中 ${untilText}（更新日以降はトライアル扱いとなります）`;
     } else {
       cancelStatus.style.display = "none";
       cancelStatus.textContent = "";
@@ -1032,12 +1390,16 @@ function renderLicense(license) {
   if (cancelBtn) cancelBtn.style.display = plan === "trial" ? "none" : "";
 
   // オンデマンド利用枠 ON/OFF（有料プラン契約中なら表示）
+  // オンデマンド利用枠 ON/OFF（有料プラン契約中なら表示）
   updateOndemandToggleUi({ plan, ondemandActive });
 
   const planSection = document.getElementById("plan-cards-section");
   if (planSection) {
     planSection.style.display = "";
+    planSection.style.display = "";
   }
+
+  updatePlanSelectButtons(plan);
 
   updatePlanSelectButtons(plan);
 
@@ -1046,8 +1408,14 @@ function renderLicense(license) {
     if (!PAID_BASE_PLANS.has(plan)) {
       ondemandStatus.style.display = "none";
       ondemandStatus.textContent = "";
+    if (!PAID_BASE_PLANS.has(plan)) {
+      ondemandStatus.style.display = "none";
+      ondemandStatus.textContent = "";
     } else {
       ondemandStatus.style.display = "block";
+      ondemandStatus.textContent = ondemandActive
+        ? "オンデマンド利用枠: 有効（手動で OFF にするまで継続）"
+        : "オンデマンド利用枠: 無効";
       ondemandStatus.textContent = ondemandActive
         ? "オンデマンド利用枠: 有効（手動で OFF にするまで継続）"
         : "オンデマンド利用枠: 無効";
@@ -1060,10 +1428,38 @@ function renderLicense(license) {
  * Web ルールでは licenses/{uid} が読めないことが多いため users/{uid}/License を優先し、
  * plan が揃っている間は licenses を購読しない（permission_denied を出さない）。
  */
+/**
+ * summary: RTDB のライセンス情報を監視する
+ * Web ルールでは licenses/{uid} が読めないことが多いため users/{uid}/License を優先し、
+ * plan が揃っている間は licenses を購読しない（permission_denied を出さない）。
+ */
 function watchLicense(uid, onLicense, onError) {
   const userScopedRef = ref(db, `users/${uid}/License`);
   const devicesRef = ref(db, `usage/${uid}/devices`);
+  const devicesRef = ref(db, `usage/${uid}/devices`);
   let unsubscribeRoot = null;
+  let latestUser = null;
+  let latestRoot = null;
+  let latestDevices = null;
+
+  const stopRootListener = () => {
+    if (!unsubscribeRoot) return;
+    try {
+      unsubscribeRoot();
+    } finally {
+      unsubscribeRoot = null;
+      latestRoot = null;
+    }
+  };
+
+  const emitMerged = async () => {
+    const merged = mergeLicenseSnapshots(latestUser, latestRoot);
+    if (!merged) {
+      onLicense(null);
+      return;
+    }
+    onLicense(await attachLicenseUsage(uid, merged, latestDevices));
+  };
   let latestUser = null;
   let latestRoot = null;
   let latestDevices = null;
@@ -1095,12 +1491,26 @@ function watchLicense(uid, onLicense, onError) {
       (snap) => {
         latestRoot = snap.exists() ? snap.val() : null;
         void emitMerged();
+        latestRoot = snap.exists() ? snap.val() : null;
+        void emitMerged();
       },
       (err) => {
+        if (!isPermissionDeniedError(err) && onError) onError(err);
         if (!isPermissionDeniedError(err) && onError) onError(err);
       }
     );
   };
+
+  const unsubscribeDevices = onValue(
+    devicesRef,
+    (snap) => {
+      latestDevices = snap.exists() ? snap.val() : null;
+      void emitMerged();
+    },
+    (err) => {
+      if (!isPermissionDeniedError(err) && onError) onError(err);
+    }
+  );
 
   const unsubscribeDevices = onValue(
     devicesRef,
@@ -1120,6 +1530,15 @@ function watchLicense(uid, onLicense, onError) {
       if (!snap.exists()) {
         ensureRootListener();
         if (!unsubscribeRoot) void emitMerged();
+      latestUser = snap.exists() ? snap.val() : null;
+      if (!snap.exists()) {
+        ensureRootListener();
+        if (!unsubscribeRoot) void emitMerged();
+        return;
+      }
+      if (isContractLicense(latestUser)) {
+        stopRootListener();
+        void emitMerged();
         return;
       }
       if (isContractLicense(latestUser)) {
@@ -1128,6 +1547,7 @@ function watchLicense(uid, onLicense, onError) {
         return;
       }
       ensureRootListener();
+      void emitMerged();
       void emitMerged();
     },
     (err) => {
@@ -1140,12 +1560,15 @@ function watchLicense(uid, onLicense, onError) {
     try {
       unsubscribeUserScoped?.();
       unsubscribeDevices?.();
+      unsubscribeDevices?.();
     } finally {
+      stopRootListener();
       stopRootListener();
     }
   };
 }
 
+/** summary: オンデマンド利用枠トグルボタンの表示/文言を最新状態で更新する */
 /** summary: オンデマンド利用枠トグルボタンの表示/文言を最新状態で更新する */
 function updateOndemandToggleUi(state) {
   const toggleOndemandBtn = document.getElementById("toggle-ondemand-btn");
@@ -1155,7 +1578,11 @@ function updateOndemandToggleUi(state) {
   const ondemandActive = state?.ondemandActive === true;
 
   const canToggle = PAID_BASE_PLANS.has(plan);
+  const canToggle = PAID_BASE_PLANS.has(plan);
   toggleOndemandBtn.style.display = canToggle ? "" : "none";
+  toggleOndemandBtn.textContent = ondemandActive
+    ? "オンデマンド利用枠を無効にする"
+    : "オンデマンド利用枠を有効にする";
   toggleOndemandBtn.textContent = ondemandActive
     ? "オンデマンド利用枠を無効にする"
     : "オンデマンド利用枠を有効にする";
@@ -1174,10 +1601,14 @@ function openOndemandConfirmModal(nextEnable) {
   if (ondemandConfirmResolver) return Promise.resolve(false);
 
   const title = nextEnable ? "オンデマンド利用枠を有効にしますか？" : "オンデマンド利用枠を無効にしますか？";
+  const title = nextEnable ? "オンデマンド利用枠を有効にしますか？" : "オンデマンド利用枠を無効にしますか？";
   const body = nextEnable
     ? [
         title,
         "",
+        "オンデマンド利用枠は後払いです（¥3 / MB）。",
+        "プランに含まれる通信量を使い切った後の超過分のみ、次回更新日の請求に加算されます。",
+        "ON の間は手動で OFF にするまで有効です。",
         "オンデマンド利用枠は後払いです（¥3 / MB）。",
         "プランに含まれる通信量を使い切った後の超過分のみ、次回更新日の請求に加算されます。",
         "ON の間は手動で OFF にするまで有効です。",
@@ -1187,6 +1618,7 @@ function openOndemandConfirmModal(nextEnable) {
         title,
         "",
         "OFF に戻しても、OFF にするまでに発生した超過分は次回更新日に請求されます。",
+        "※オンデマンド利用枠の新規発生は止まります。",
         "※オンデマンド利用枠の新規発生は止まります。",
       ].join("\n");
 
@@ -1249,6 +1681,10 @@ async function handleToggleOndemandClick() {
 
   if (!PAID_BASE_PLANS.has(plan)) {
     setPageError("オンデマンド利用枠の切り替えは、有料プラン契約中のみ操作できます。");
+  const ondemandActive = isOndemandEnabledLicense(latestLicenseSnapshot);
+
+  if (!PAID_BASE_PLANS.has(plan)) {
+    setPageError("オンデマンド利用枠の切り替えは、有料プラン契約中のみ操作できます。");
     updateOndemandToggleUi({ plan, ondemandActive });
     return;
   }
@@ -1270,6 +1706,7 @@ async function handleToggleOndemandClick() {
     // 反映はライセンス監視の更新を待つが、体感のため先にUIだけ戻す
     updateOndemandToggleUi({ plan, ondemandActive: !ondemandActive });
   } catch (err) {
+    setPageError(`オンデマンド利用枠の切り替えに失敗しました。\n${formatFirebaseError(err)}`);
     setPageError(`オンデマンド利用枠の切り替えに失敗しました。\n${formatFirebaseError(err)}`);
     updateOndemandToggleUi({ plan, ondemandActive });
   } finally {
@@ -1405,7 +1842,84 @@ onAuthStateChanged(auth, async (user) => {
         );
         return;
       }
+    }
 
+    void maybeSyncLicenseOnceIfTrial(user.uid);
+
+    document.getElementById("sync-license-btn")?.addEventListener("click", () => {
+      void handleSyncLicenseButtonClick();
+    });
+
+    // 決済直後は Webhook 反映待ちのためリトライで吸収する
+    loadLicenseWithRetryAfterPayment(user.uid).then((paymentRes) => {
+      if (paymentRes?.handled && paymentRes.license) {
+        watchLicense(
+          user.uid,
+          async (license) => {
+            if (license) {
+              renderLicense(license);
+              if (license?.accountDeleted === true) {
+                renderAccountDeletedState(true, license);
+              }
+              return;
+            }
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+          },
+          async () => {
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+            setPageError("契約情報の読み取りに失敗しました。");
+          }
+        );
+        return;
+      }
+      if (paymentRes?.handled) {
+        watchLicense(
+          user.uid,
+          async (license) => {
+            if (license) {
+              renderLicense(license);
+              if (license?.accountDeleted === true) {
+                renderAccountDeletedState(true, license);
+              }
+              return;
+            }
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+          },
+          async () => {
+            const usedBytes = await loadTrialUsedBytes(user.uid);
+            renderLicense({
+              plan: "trial",
+              limitBytes: 50 * 1024 * 1024,
+              usedBytes,
+              renewedAt: null,
+            });
+          }
+        );
+        return;
+      }
+
+      // サインアップ直後は、Functions側の初期書き込み待ちのためリトライで吸収する
+      return loadLicenseWithRetryAfterSignup(user.uid);
+    }).then((res) => {
+      if (!res) return;
       // サインアップ直後は、Functions側の初期書き込み待ちのためリトライで吸収する
       return loadLicenseWithRetryAfterSignup(user.uid);
     }).then((res) => {
@@ -1780,4 +2294,5 @@ document.getElementById("delete-execute")?.addEventListener("click", async () =>
   }
 });
 
+// オンデマンド利用枠は有料プラン契約中にトグルで切り替える（単独プランとしては選択不可）
 // オンデマンド利用枠は有料プラン契約中にトグルで切り替える（単独プランとしては選択不可）
