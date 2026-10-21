@@ -55,7 +55,6 @@
     "name": "V-Shift",
     "description": "小・中規模介護施設向けのシフト管理アプリケーション。シフト作成・勤怠管理を効率化。",
     "url": "https://v-shift-dev.github.io/V-Shift/",
-    "downloadUrl": "https://v-shift-dev.github.io/V-Shift/V-Shift-Installer.zip",
     "operatingSystem": "Windows 11",
     "applicationCategory": "BusinessApplication",
     "offers": {
@@ -574,16 +573,13 @@
               </svg>
               V-Shift
             </h3>
-            <p>V-Shiftアプリケーションです。ダウンロードしてすぐにシフト管理を始められます。</p>
-            <a href="V-Shift-Installer.zip" id="main-download-btn"
-              class="download-button requires-terms-agree disabled-dl" download="V-Shift-Installer.zip"
-              onclick="if(this.classList.contains('disabled-dl')) { event.preventDefault(); return false; } gtag('event', 'download', {'event_category': 'download', 'event_label': 'app_installer'});">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
-              </svg>
-              V-Shiftをダウンロード
-            </a>
-            <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.7;">バージョン 1.1.8 • Windows 11 対応 • 無料</p>
+            <p>V-Shiftアプリケーションです。</p>
+            <!-- Why リンクではなく span にしたか: requires-terms-agree を付けたままだと、規約に同意した時点で
+                 押せる状態に戻ってしまう。インストーラーもリポジトリから下ろしたので、押せる要素自体を置かない。 -->
+            <span id="main-download-btn" class="download-button disabled-dl" aria-disabled="true">
+              現在提供を一時停止しております
+            </span>
+            <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.7;">再開の時期は決まり次第お知らせします。</p>
           </div>
 
 
@@ -1127,7 +1123,11 @@
       }
     }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <!-- Why 版とハッシュを固定するか: 版の指定が無いと配信元の「最新版」がそのまま入り、
+       部品の作者アカウントが乗っ取られたときに悪い版がこのページで動く。ハッシュが違えば読み込まない。 -->
+  <script src="https://cdn.jsdelivr.net/npm/marked@15.0.12/marked.min.js"
+    integrity="sha384-948ahk4ZmxYVYOc+rxN1H2gM1EJ2Duhp7uHtZ4WSLkV4Vtx5MUqnV+l7u9B+jFv+"
+    crossorigin="anonymous"></script>
   <script src="news.js"></script>
 </body>
 

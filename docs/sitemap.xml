@@ -12,14 +12,6 @@
     <priority>1.0</priority>
   </url>
   
-  <!-- ダウンロードファイル -->
-  <url>
-    <loc>https://v-shift-dev.github.io/V-Shift/V-Shift-Installer.zip</loc>
-    <lastmod>2025-07-23</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.9</priority>
-  </url>
-
   <!-- スクリーンショット画像 -->
   <url>
     <loc>https://v-shift-dev.github.io/V-Shift/PageImage/エクセル出力例.png</loc>
